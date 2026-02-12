@@ -2,18 +2,15 @@
 
 type Props = {
   pair: string
-  open: boolean
-  onToggle: () => void
   direction?: "BUY" | "SELL"
   signal?: any
+  onToggle: () => void
 }
 
 export default function PairCard({
   pair,
-  open,
   onToggle,
   direction,
-  signal
 }: Props) {
 
   const dir = direction || "--"
@@ -47,48 +44,6 @@ export default function PairCard({
         </div>
       </div>
 
-      {/* EXPANDED CONTENT */}
-      {open && (
-        <div className="p-4 border-t border-neutral-800 space-y-4">
-
-          {/* Latest Signal */}
-          <div>
-            <div className="text-sm text-neutral-400">Latest Signal</div>
-            <div className="font-bold text-lg">
-              {signal?.direction || "--"} {signal?.entry || ""}
-            </div>
-            <div className="text-sm text-neutral-400">
-              SL {signal?.sl || "--"} · TP {signal?.tp || "--"}
-            </div>
-          </div>
-
-          {/* Sentiment */}
-          <div>
-            <div className="text-sm text-neutral-400">
-              Market Sentiment
-            </div>
-            <div className="bg-neutral-800 rounded-lg h-3 mt-2"></div>
-          </div>
-
-          {/* Indicators */}
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>RSI Buy</div>
-            <div>MACD Sell</div>
-            <div>CCI Buy</div>
-            <div>ADX Buy</div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <div className="text-sm text-neutral-400">Market Notes</div>
-            <ul className="text-sm space-y-1 mt-1">
-              <li>• Structure remains bullish above H1 support</li>
-              <li>• Momentum expanding with volume</li>
-            </ul>
-          </div>
-
-        </div>
-      )}
     </div>
   )
 }

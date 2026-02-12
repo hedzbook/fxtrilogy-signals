@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import PairCard from "@/components/PairCard"
+import SignalPanel from "@/components/SignalPanel"
 
 const PAIRS = [
   "XAUUSD",
@@ -16,14 +17,13 @@ const PAIRS = [
   "USDCAD"
 ]
 
-// 👇 YOUR GAS URL
 const SIGNAL_API =
-    "https://script.google.com/macros/s/AKfycbyY5Ku5nk6gZRMxffgfseVnYCUywlQYQM8qEfFzZjLLYEpV-g7cdCjrH6a3sK8IGnGt/exec?key=HEDZ2026"
+  "https://script.google.com/macros/s/AKfycbyY5Ku5nk6gZRMxffgfseVnYCUywlQYQM8qEfFzZjLLYEpV-g7cdCjrH6a3sK8IGnGt/exec?key=HEDZ2026"
 
 export default function Page() {
 
-  const [openPair, setOpenPair] = useState<string | null>(null)
   const [signals, setSignals] = useState<any>({})
+  const [activePair, setActivePair] = useState<string | null>(null)
 
   // ✅ Telegram Mini App setup
   useEffect(() => {
@@ -52,7 +52,6 @@ export default function Page() {
 
     loadSignals()
 
-    // 🔥 auto refresh every 10 seconds
     const interval = setInterval(loadSignals, 10000)
 
     return () => clearInterval(interval)
@@ -71,15 +70,22 @@ export default function Page() {
           <PairCard
             key={pair}
             pair={pair}
-            open={openPair === pair}
             direction={signal?.direction}
             signal={signal}
-            onToggle={() =>
-              setOpenPair(openPair === pair ? null : pair)
-            }
+            onToggle={() => setActivePair(pair)}
           />
         )
       })}
+
+      {/* ✅ FLOATING PANEL */}
+      {activePair && (
+        <SignalPanel
+          pair={activePair}
+          signal={signals[activePair]}
+          onClose={() => setActivePair(null)}
+        />
+      )}
+
     </main>
   )
 }
