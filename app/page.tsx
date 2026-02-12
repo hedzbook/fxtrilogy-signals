@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import PairCard from "@/components/PairCard"
-import SignalPanel from "@/components/SignalPanel"
 
 const PAIRS = [
   "XAUUSD",
@@ -23,7 +22,7 @@ const SIGNAL_API =
 export default function Page() {
 
   const [signals, setSignals] = useState<any>({})
-  const [activePair, setActivePair] = useState<string | null>(null)
+  const [openPair, setOpenPair] = useState<string | null>(null)
 
   // ✅ Telegram Mini App setup
   useEffect(() => {
@@ -51,7 +50,6 @@ export default function Page() {
     }
 
     loadSignals()
-
     const interval = setInterval(loadSignals, 10000)
 
     return () => clearInterval(interval)
@@ -70,22 +68,15 @@ export default function Page() {
           <PairCard
             key={pair}
             pair={pair}
+            open={openPair === pair}
             direction={signal?.direction}
             signal={signal}
-            onToggle={() => setActivePair(pair)}
+            onToggle={() =>
+              setOpenPair(openPair === pair ? null : pair)
+            }
           />
         )
       })}
-
-      {/* ✅ FLOATING PANEL */}
-      {activePair && (
-        <SignalPanel
-          pair={activePair}
-          signal={signals[activePair]}
-          onClose={() => setActivePair(null)}
-        />
-      )}
-
     </main>
   )
 }
