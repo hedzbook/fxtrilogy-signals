@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FxTrilogy Signals",
+  title: "FXHEDZ Signals",
   description: "Live Trading Signals Panel",
 };
 

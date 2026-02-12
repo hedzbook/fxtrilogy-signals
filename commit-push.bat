@@ -2,7 +2,7 @@
 cd /d "%~dp0"
 
 REM =====================================
-REM FXTRILOGY SIGNALS — AUTO PUSH
+REM FXHEDZ — AUTO PUSH
 REM =====================================
 
 for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyy-MM-dd_HH-mm-ss"') do set NOW=%%i
