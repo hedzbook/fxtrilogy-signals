@@ -96,13 +96,46 @@ function TradeBar({
 
   if (!sl || !tp || !entry) return null
 
+let entryPercent = 50
+let pricePercent = 50
+
+// BUY STRUCTURE
+if (direction === "BUY") {
+
   const range = tp - sl
   if (!range) return null
 
-  const entryPercent = ((entry - sl) / range) * 100
-  const pricePercent = ((price - sl) / range) * 100
+  entryPercent = ((entry - sl) / range) * 100
+  pricePercent = ((price - sl) / range) * 100
+}
 
-  const isTPside = price >= entry
+// SELL STRUCTURE (INVERTED RANGE)
+else if (direction === "SELL") {
+
+  const range = sl - tp
+  if (!range) return null
+
+  entryPercent = ((sl - entry) / range) * 100
+  pricePercent = ((sl - price) / range) * 100
+}
+
+// fallback
+else {
+  const range = tp - sl
+  if (!range) return null
+
+  entryPercent = ((entry - sl) / range) * 100
+  pricePercent = ((price - sl) / range) * 100
+}
+
+// clamp safety
+pricePercent = Math.max(0, Math.min(100, pricePercent))
+
+// 🔥 PROFIT SIDE COLORING (Institutional Logic)
+const isTPside =
+  direction === "BUY"
+    ? price >= entry
+    : price <= entry
 
   return (
     <div className="mt-3 select-none">
