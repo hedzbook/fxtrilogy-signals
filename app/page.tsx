@@ -31,7 +31,7 @@ export default function Page() {
 
     if (tg && tg.initDataUnsafe?.user?.id) {
       tg.ready()
-      // tg.expand()
+      tg.expand()
       tg.disableVerticalSwipes()
       document.body.style.backgroundColor =
         tg.themeParams.bg_color || "#000"
@@ -68,7 +68,7 @@ export default function Page() {
 
   if (!authorized) {
     return (
-      <main className="min-h-[100dvh] pb-[env(safe-area-inset-bottom)] bg-black text-white flex items-center justify-center">
+      <main className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center space-y-2">
           <div className="text-xl font-bold">FXHEDZ</div>
           <div className="text-neutral-400 text-sm">
@@ -80,7 +80,7 @@ export default function Page() {
   }
 
   return (
-    <main className="min-h-[100dvh] pb-[env(safe-area-inset-bottom)] bg-black text-white p-4 space-y-2">
+    <main className="min-h-screen bg-black text-white p-4 space-y-3">
       {/* <h1 className="text-xl font-bold">FXHEDZ Signals</h1> */}
 
       {PAIRS.map(pair => {
