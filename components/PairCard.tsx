@@ -81,7 +81,13 @@ export default function PairCard({
    INSTITUTIONAL TRADE BAR
 ====================================================== */
 
-function TradeBar({ signal }: { signal: any }) {
+function TradeBar({
+  signal,
+  direction
+}: {
+  signal: any
+  direction?: "BUY" | "SELL" | "--"
+}) {
 
   const sl = Number(signal?.sl)
   const tp = Number(signal?.tp)
