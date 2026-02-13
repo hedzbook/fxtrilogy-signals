@@ -157,11 +157,22 @@ function PairCard({
               <div className="space-y-2">
                 {history?.length ? history.map((h, i) => (
                   <div key={i} className="bg-neutral-800 p-3 rounded-lg text-sm flex justify-between">
-                    <div>
-                      <div className="font-semibold">{h.direction}</div>
+                    <div className="space-y-1">
+
+                      <div className="flex gap-2 items-center">
+                        <span className={`font-semibold ${h.direction === "BUY" ? "text-green-400" : "text-red-400"}`}>
+                          {h.direction}
+                        </span>
+
+                        <span className="text-neutral-500 text-xs">
+                          {h.time}
+                        </span>
+                      </div>
+
                       <div className="text-neutral-400 text-xs">
                         {h.entry} → {h.exit}
                       </div>
+
                     </div>
                     <div className={h.pnl >= 0 ? "text-green-400" : "text-red-400"}>
                       {h.pnl}
@@ -174,14 +185,36 @@ function PairCard({
             )}
 
             {tab === "performance" && (
-              <div className="space-y-3 text-sm">
+              <div className="space-y-4">
 
-                <Stat label="Total Trades" value={performance?.trades} />
-                <Stat label="Wins" value={performance?.wins} />
-                <Stat label="Losses" value={performance?.losses} />
-                <Stat label="Win Rate" value={performance?.winRate + "%"} />
-                <Stat label="Total PnL" value={performance?.pnlTotal} />
-                <Stat label="Profit Factor" value={performance?.profitFactor} />
+                {/* PRIMARY METRICS */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+
+                  <Metric
+                    label="Win Rate"
+                    value={performance?.winRate !== undefined ? performance.winRate + "%" : "--"}
+                  />
+
+                  <Metric
+                    label="Profit Factor"
+                    value={performance?.profitFactor ?? "--"}
+                  />
+
+                </div>
+
+                {/* SECONDARY METRICS */}
+                <div className="space-y-2 text-sm">
+
+                  <Stat label="Total Trades" value={performance?.trades} />
+                  <Stat label="Wins" value={performance?.wins} />
+                  <Stat label="Losses" value={performance?.losses} />
+
+                  <Stat
+                    label="Total PnL"
+                    value={performance?.pnlTotal}
+                  />
+
+                </div>
 
               </div>
             )}
@@ -392,6 +425,15 @@ function Stat({ label, value }: { label: string, value: any }) {
     <div className="flex justify-between bg-neutral-800 rounded-lg p-3">
       <span className="text-neutral-400">{label}</span>
       <span className="font-semibold">{value ?? "--"}</span>
+    </div>
+  )
+}
+
+function Metric({ label, value }: { label: string, value: any }) {
+  return (
+    <div className="bg-neutral-800 rounded-lg p-4 text-center">
+      <div className="text-neutral-400 text-xs">{label}</div>
+      <div className="text-xl font-bold">{value ?? "--"}</div>
     </div>
   )
 }
