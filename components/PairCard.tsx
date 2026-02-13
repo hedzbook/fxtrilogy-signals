@@ -144,7 +144,7 @@ function TradeBar({
             left: `${entryPercent}%`,
             width: `${100 - entryPercent}%`,
             background:
-              "linear-gradient(90deg, rgba(74,222,128,0.8), rgba(34,197,94,0.05))"
+              "linear-gradient(90deg, rgba(34,197,94,0.05), rgba(74,222,128,0.8))"
           }}
         />
 
