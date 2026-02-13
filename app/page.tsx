@@ -21,63 +21,120 @@ const SIGNAL_API = "/api/signals"
 export default function Page() {
 
   const [signals, setSignals] = useState<any>({})
+  const [pairData, setPairData] = useState<any>({})
   const [openPair, setOpenPair] = useState<string | null>(null)
   const [authorized, setAuthorized] = useState(false)
 
-  // ✅ Telegram Mini App + Access Guard
-useEffect(() => {
+  // ======================================================
+  // TELEGRAM MINIAPP GUARD
+  // ======================================================
+  useEffect(() => {
 
-  const tg = (window as any)?.Telegram?.WebApp
+    const tg = (window as any)?.Telegram?.WebApp
 
-  if (tg && tg.initDataUnsafe?.user?.id) {
+    if (tg && tg.initDataUnsafe?.user?.id) {
 
-    tg.ready()
+      tg.ready()
+      tg.expand()
+      tg.disableVerticalSwipes()
+      tg.setBackgroundColor("#000000")
+      tg.setHeaderColor("#000000")
 
-    // force full-height mode
-    tg.expand()
+      document.documentElement.style.height = "100%"
+      document.body.style.minHeight = "100vh"
+      document.body.style.overscrollBehavior = "none"
+      document.body.style.touchAction = "pan-y"
+      setAuthorized(true)
 
-    // prevent half-drag minimized state
-    tg.disableVerticalSwipes()
+    } else {
+      console.log("Blocked: Not opened via Telegram")
+      setAuthorized(false)
+    }
 
-    // match Telegram container color
-    tg.setBackgroundColor("#000000")
-    tg.setHeaderColor("#000000")
+  }, [])
 
-    // optional but helps remove extra space feeling
-    document.documentElement.style.height = "100%"
-    document.body.style.minHeight = "100vh"
-
-    setAuthorized(true)
-
-  } else {
-    console.log("Blocked: Not opened via Telegram")
-    setAuthorized(false)
-  }
-
-}, [])
-
-  // 🚀 LIVE SIGNAL REFRESH
+  // ======================================================
+  // GLOBAL LIVE SIGNALS LOOP (LIGHTWEIGHT)
+  // ======================================================
   useEffect(() => {
 
     if (!authorized) return
 
     async function loadSignals() {
+
       try {
+
         const res = await fetch(SIGNAL_API)
         const json = await res.json()
-        setSignals(json)
+
+        // supports both {signals:{}} OR direct object
+        const incoming = json?.signals ? json.signals : json
+
+        setSignals((prev: any) => {
+
+          // 🔥 shallow compare to avoid useless renders
+          if (JSON.stringify(prev) === JSON.stringify(incoming)) {
+            return prev
+          }
+
+          return incoming
+        })
+
       } catch (err) {
         console.log("Signal fetch error", err)
       }
     }
 
     loadSignals()
-    const interval = setInterval(loadSignals, 3000)
+
+    const interval = setInterval(loadSignals, 2500)
 
     return () => clearInterval(interval)
 
   }, [authorized])
 
+  // ======================================================
+  // LAZY LOAD PAIR DATA (history + performance + notes)
+  // ======================================================
+  async function loadPair(pair: string) {
+
+    // already loaded
+    if (pairData[pair]) return
+
+    try {
+
+      const res = await fetch(`/api/signals?pair=${pair}`)
+      const json = await res.json()
+
+      setPairData((prev: any) => ({
+        ...prev,
+        [pair]: json
+      }))
+
+    } catch (err) {
+      console.log("Pair load error", err)
+    }
+  }
+
+  // ======================================================
+  // TOGGLE HANDLER
+  // ======================================================
+  function togglePair(pair: string) {
+    setOpenPair(prev => {
+
+      const next = prev === pair ? null : pair
+
+      if (next) {
+        requestIdleCallback(() => loadPair(next))
+      }
+
+      return next
+    })
+  }
+
+  // ======================================================
+  // ACCESS BLOCK SCREEN
+  // ======================================================
   if (!authorized) {
     return (
       <main className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -91,13 +148,16 @@ useEffect(() => {
     )
   }
 
+  // ======================================================
+  // MAIN UI
+  // ======================================================
   return (
     <main className="min-h-screen bg-black text-white p-4 space-y-3">
-      {/* <h1 className="text-xl font-bold">FXHEDZ Signals</h1> */}
 
-      {PAIRS.map(pair => {
+      {PAIRS.map((pair) => {
 
-        const signal = signals[pair]
+        const signal = signals?.[pair]
+        const extra = pairData?.[pair] || {}
 
         return (
           <PairCard
@@ -106,12 +166,14 @@ useEffect(() => {
             open={openPair === pair}
             direction={signal?.direction}
             signal={signal}
-            onToggle={() =>
-              setOpenPair(openPair === pair ? null : pair)
-            }
+            history={extra?.history}
+            performance={extra?.performance}
+            notes={extra?.notes}
+            onToggle={() => togglePair(pair)}
           />
         )
       })}
+
     </main>
   )
 }

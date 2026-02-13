@@ -1,6 +1,8 @@
 "use client"
 
+import React from "react"
 import { useState, useEffect } from "react"
+
 type TradeDirection = "BUY" | "SELL" | "EXIT" | "--"
 
 type Props = {
@@ -14,7 +16,7 @@ type Props = {
   onToggle: () => void
 }
 
-export default function PairCard({
+function PairCard({
   pair,
   open,
   onToggle,
@@ -67,7 +69,7 @@ export default function PairCard({
 
     }
 
-  }, [signal, liveDir])
+  }, [signal?.price, signal?.tp, signal?.sl, liveDir])
 
   return (
     <div className="border border-neutral-800 rounded-xl overflow-hidden bg-neutral-900 transition-all active:scale-[0.99]">
@@ -393,3 +395,5 @@ function Stat({ label, value }: { label: string, value: any }) {
     </div>
   )
 }
+
+export default React.memo(PairCard)
