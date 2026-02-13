@@ -44,7 +44,6 @@ export default function Page() {
       document.body.style.minHeight = "100vh"
       document.body.style.overscrollBehavior = "none"
       document.body.style.touchAction = "pan-y"
-      document.body.style.position = "fixed"
       setAuthorized(true)
 
     } else {
