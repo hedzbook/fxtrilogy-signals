@@ -81,7 +81,7 @@ export default function Page() {
 
   return (
     <main className="min-h-screen bg-black text-white p-4 space-y-3">
-      <h1 className="text-xl font-bold">FXHEDZ Signals</h1>
+      // <h1 className="text-xl font-bold">FXHEDZ Signals</h1>
 
       {PAIRS.map(pair => {
 
