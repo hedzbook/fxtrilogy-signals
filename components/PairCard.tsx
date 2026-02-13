@@ -35,13 +35,12 @@ export default function PairCard({
             <div className="font-semibold">{pair}</div>
 
             <div
-              className={`font-bold ${
-                dir === "BUY"
+              className={`font-bold ${dir === "BUY"
                   ? "text-green-400"
                   : dir === "SELL"
-                  ? "text-red-400"
-                  : "text-neutral-500"
-              }`}
+                    ? "text-red-400"
+                    : "text-neutral-500"
+                }`}
             >
               {dir}
             </div>
@@ -53,7 +52,7 @@ export default function PairCard({
             signal?.sl &&
             signal?.tp && (
               <TradeBar signal={signal} direction={dir} />
-          )}
+            )}
 
         </div>
       </div>
@@ -103,26 +102,26 @@ function TradeBar({
 
   if (!sl || !tp || !entry) return null
 
-// --- ENTRY-CENTERED COORDINATE SYSTEM
+  // --- ENTRY-CENTERED COORDINATE SYSTEM
 
-const leftRange = Math.abs(entry - sl)
-const rightRange = Math.abs(tp - entry)
+  const leftRange = Math.abs(entry - sl)
+  const rightRange = Math.abs(tp - entry)
 
-// 🔥 ENTRY MUST ALWAYS BE CENTERED
-const entryPercent = 50
+  // 🔥 ENTRY MUST ALWAYS BE CENTERED
+  const entryPercent = 50
 
-let pricePercent = 50
+  let pricePercent = 50
 
-if (price < entry && leftRange > 0) {
-  pricePercent = 50 - ((entry - price) / leftRange) * 50
-}
+  if (price < entry && leftRange > 0) {
+    pricePercent = 50 - ((entry - price) / leftRange) * 50
+  }
 
-if (price > entry && rightRange > 0) {
-  pricePercent = 50 + ((price - entry) / rightRange) * 50
-}
+  if (price > entry && rightRange > 0) {
+    pricePercent = 50 + ((price - entry) / rightRange) * 50
+  }
 
-// clamp
-pricePercent = Math.max(0, Math.min(100, pricePercent))
+  // clamp
+  pricePercent = Math.max(0, Math.min(100, pricePercent))
 
   pricePercent = Math.max(0, Math.min(100, pricePercent))
 
@@ -192,21 +191,20 @@ pricePercent = Math.max(0, Math.min(100, pricePercent))
         <div
           className="absolute"
           style={{
-            transform: `translateX(calc(${pricePercent}% - 50%))`,
-            transition: "transform 380ms cubic-bezier(0.22,1,0.36,1)",
-            willChange: "transform"
+            left: `${pricePercent}%`,
+            transform: "translateX(-50%)",
+            transition: "left 380ms cubic-bezier(0.22,1,0.36,1)",
+            willChange: "left"
           }}
         >
           <div
-            className={`absolute -inset-2 rounded-full blur-md ${
-              isTPside ? "bg-green-500/30" : "bg-red-500/30"
-            }`}
+            className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
+              }`}
           />
 
           <div
-            className={`w-3 h-3 rounded-full ${
-              isTPside ? "bg-green-400" : "bg-red-400"
-            }`}
+            className={`w-3 h-3 rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
+              }`}
             style={{
               boxShadow: isTPside
                 ? "0 0 18px rgba(74,222,128,0.9)"
