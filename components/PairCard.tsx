@@ -36,10 +36,10 @@ export default function PairCard({
 
             <div
               className={`font-bold ${dir === "BUY"
-                  ? "text-green-400"
-                  : dir === "SELL"
-                    ? "text-red-400"
-                    : "text-neutral-500"
+                ? "text-green-400"
+                : dir === "SELL"
+                  ? "text-red-400"
+                  : "text-neutral-500"
                 }`}
             >
               {dir}
@@ -104,20 +104,35 @@ function TradeBar({
 
   // --- ENTRY-CENTERED COORDINATE SYSTEM
 
-  const leftRange = Math.abs(entry - sl)
-  const rightRange = Math.abs(tp - entry)
-
-  // 🔥 ENTRY MUST ALWAYS BE CENTERED
   const entryPercent = 50
-
   let pricePercent = 50
 
-  if (price < entry && leftRange > 0) {
-    pricePercent = 50 - ((entry - price) / leftRange) * 50
-  }
+  if (direction === "BUY") {
 
-  if (price > entry && rightRange > 0) {
-    pricePercent = 50 + ((price - entry) / rightRange) * 50
+    const leftRange = Math.abs(entry - sl)
+    const rightRange = Math.abs(tp - entry)
+
+    if (price < entry && leftRange > 0) {
+      pricePercent = 50 - ((entry - price) / leftRange) * 50
+    }
+
+    if (price > entry && rightRange > 0) {
+      pricePercent = 50 + ((price - entry) / rightRange) * 50
+    }
+
+  } else if (direction === "SELL") {
+
+    // 🔥 FLIPPED AXIS FOR SELL
+    const leftRange = Math.abs(tp - entry)
+    const rightRange = Math.abs(entry - sl)
+
+    if (price > entry && rightRange > 0) {
+      pricePercent = 50 - ((price - entry) / rightRange) * 50
+    }
+
+    if (price < entry && leftRange > 0) {
+      pricePercent = 50 + ((entry - price) / leftRange) * 50
+    }
   }
 
   // clamp
