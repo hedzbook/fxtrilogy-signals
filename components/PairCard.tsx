@@ -31,7 +31,6 @@ export default function PairCard({
       >
         <div className="w-full">
 
-          {/* TOP ROW */}
           <div className="flex justify-between items-center">
             <div className="font-semibold">{pair}</div>
 
@@ -48,7 +47,6 @@ export default function PairCard({
             </div>
           </div>
 
-          {/* LIVE TRADE BAR */}
           {signal?.entry && signal?.sl && signal?.tp && (
             <TradeBar signal={signal} direction={dir} />
           )}
@@ -56,7 +54,6 @@ export default function PairCard({
         </div>
       </div>
 
-      {/* DROPDOWN AREA */}
       {open && (
         <div className="border-t border-neutral-800 max-h-[60vh] overflow-y-auto overscroll-contain touch-pan-y p-4 space-y-4">
 
@@ -74,47 +71,24 @@ export default function PairCard({
             </div>
           </div>
 
-          <div>
-            <div className="text-sm text-neutral-400">Market Sentiment</div>
-            <div className="bg-neutral-800 rounded-lg h-3 mt-2"></div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>RSI Buy</div>
-            <div>MACD Sell</div>
-            <div>CCI Buy</div>
-            <div>ADX Buy</div>
-          </div>
-
-          <div>
-            <div className="text-sm text-neutral-400">Market Notes</div>
-            <ul className="text-sm space-y-2 mt-2 leading-relaxed">
-              <li>• Structure remains bullish above H1 support</li>
-              <li>• Momentum expanding with volume</li>
-              <li>• Liquidity sweep detected on M15</li>
-              <li>• Panel scrolls without moving other cards</li>
-            </ul>
-          </div>
-
         </div>
       )}
     </div>
   )
 }
 
-function TradeBar({
-  signal,
-  direction
-}: {
-  signal: any
-  direction?: string
-}) {
+/* ======================================================
+   INSTITUTIONAL TRADE BAR
+====================================================== */
+
+function TradeBar({ signal }: { signal: any }) {
 
   const sl = Number(signal?.sl)
   const tp = Number(signal?.tp)
   const entry = Number(signal?.entry)
-
   const price = Number(signal?.price || entry)
+
+  if (!sl || !tp || !entry) return null
 
   const range = tp - sl
   if (!range) return null
@@ -122,55 +96,99 @@ function TradeBar({
   const entryPercent = ((entry - sl) / range) * 100
   const pricePercent = ((price - sl) / range) * 100
 
-  // 🔥 Direction-based glow color
-  const glow =
-    direction === "BUY"
-      ? "bg-green-400 shadow-[0_0_14px_rgba(34,197,94,0.9)]"
-      : direction === "SELL"
-      ? "bg-red-400 shadow-[0_0_14px_rgba(248,113,113,0.9)]"
-      : "bg-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.9)]"
+  const isTPside = price >= entry
 
   return (
-    <div className="mt-3">
+    <div className="mt-3 select-none">
 
-      <div className="relative h-6 flex items-center">
+      {/* LABELS */}
+      <div className="flex justify-between text-[10px] text-neutral-400 mb-1">
+        <span>SL / HEDZ</span>
+        <span>ENTRY</span>
+        <span>TP</span>
+      </div>
 
-        {/* BASE LINE */}
-        <div className="absolute w-full h-[2px] bg-neutral-700 rounded"></div>
+      <div className="relative h-6 flex items-center overflow-visible">
 
-        {/* SL DOT */}
-        <div className="absolute left-0 w-3 h-3 rounded-full border border-neutral-400 bg-transparent"></div>
-
-        {/* ENTRY DOT */}
+        {/* 🔥 GRADIENT ZONES (Institutional look) */}
         <div
-          className="absolute w-3 h-3 rounded-full border border-neutral-400 bg-transparent"
+          className="absolute h-[2px]"
+          style={{
+            width: `${entryPercent}%`,
+            background:
+              "linear-gradient(90deg, rgba(220,38,38,0.15), rgba(248,113,113,0.8))"
+          }}
+        />
+
+        <div
+          className="absolute h-[2px]"
+          style={{
+            left: `${entryPercent}%`,
+            width: `${100 - entryPercent}%`,
+            background:
+              "linear-gradient(90deg, rgba(74,222,128,0.8), rgba(34,197,94,0.15))"
+          }}
+        />
+
+        {/* HOLLOW DOTS */}
+        <div className="absolute left-0 w-3 h-3 rounded-full border border-neutral-400" />
+
+        <div
+          className="absolute w-3 h-3 rounded-full border border-neutral-400"
           style={{
             left: `${entryPercent}%`,
             transform: "translateX(-50%)"
           }}
         />
 
-        {/* TP DOT */}
-        <div className="absolute right-0 w-3 h-3 rounded-full border border-neutral-400 bg-transparent"></div>
+        <div className="absolute right-0 w-3 h-3 rounded-full border border-neutral-400" />
 
-        {/* 🔥 HYPER SMOOTH PULSE DOT */}
+        {/* 🔥 INSTITUTIONAL LIVE PRICE DOT */}
         <div
-          className={`absolute w-3 h-3 rounded-full ${glow} animate-pulse`}
+          className="absolute"
           style={{
-            left: `${pricePercent}%`,
-            transform: "translateX(-50%)",
-            transition: "left 0.6s cubic-bezier(0.22,1,0.36,1)"
+            transform: `translateX(calc(${pricePercent}% - 50%))`,
+            transition: "transform 380ms cubic-bezier(0.22,1,0.36,1)",
+            willChange: "transform"
           }}
-        />
+        >
+          {/* trail glow */}
+          <div
+            className={`absolute -inset-2 rounded-full blur-md ${
+              isTPside ? "bg-green-500/30" : "bg-red-500/30"
+            }`}
+          />
+
+          {/* core dot */}
+          <div
+            className={`w-3 h-3 rounded-full ${
+              isTPside ? "bg-green-400" : "bg-red-400"
+            }`}
+            style={{
+              boxShadow: isTPside
+                ? "0 0 18px rgba(74,222,128,0.9)"
+                : "0 0 18px rgba(248,113,113,0.9)",
+              animation: "instPulse 1.6s cubic-bezier(0.4,0,0.2,1) infinite"
+            }}
+          />
+        </div>
 
       </div>
 
-      {/* PRICE LABELS */}
+      {/* PRICES */}
       <div className="flex justify-between text-[11px] text-neutral-400 mt-1">
         <span>{signal?.sl}</span>
         <span>{signal?.entry}</span>
         <span>{signal?.tp}</span>
       </div>
+
+      <style jsx>{`
+        @keyframes instPulse {
+          0% { transform: scale(0.85); opacity:.7 }
+          50% { transform: scale(1.25); opacity:1 }
+          100% { transform: scale(0.85); opacity:.7 }
+        }
+      `}</style>
 
     </div>
   )
