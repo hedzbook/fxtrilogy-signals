@@ -96,46 +96,24 @@ function TradeBar({
 
   if (!sl || !tp || !entry) return null
 
-let entryPercent = 50
-let pricePercent = 50
-
-// BUY STRUCTURE
-if (direction === "BUY") {
+  // 🔥 ONE CONSISTENT COORDINATE SYSTEM
+  // LEFT = SL
+  // RIGHT = TP
 
   const range = tp - sl
   if (!range) return null
 
-  entryPercent = ((entry - sl) / range) * 100
-  pricePercent = ((price - sl) / range) * 100
-}
+  const entryPercent = ((entry - sl) / range) * 100
+  let pricePercent = ((price - sl) / range) * 100
 
-// SELL STRUCTURE (INVERTED RANGE)
-else if (direction === "SELL") {
+  // clamp inside bar
+  pricePercent = Math.max(0, Math.min(100, pricePercent))
 
-  const range = sl - tp
-  if (!range) return null
-
-  entryPercent = ((sl - entry) / range) * 100
-  pricePercent = ((sl - price) / range) * 100
-}
-
-// fallback
-else {
-  const range = tp - sl
-  if (!range) return null
-
-  entryPercent = ((entry - sl) / range) * 100
-  pricePercent = ((price - sl) / range) * 100
-}
-
-// clamp safety
-pricePercent = Math.max(0, Math.min(100, pricePercent))
-
-// 🔥 PROFIT SIDE COLORING (Institutional Logic)
-const isTPside =
-  direction === "BUY"
-    ? price >= entry
-    : price <= entry
+  // 🔥 PROFIT SIDE LOGIC
+  const isTPside =
+    direction === "BUY"
+      ? price >= entry
+      : price <= entry
 
   return (
     <div className="mt-3 select-none">
@@ -149,23 +127,24 @@ const isTPside =
 
       <div className="relative h-6 flex items-center overflow-visible">
 
-        {/* 🔥 GRADIENT ZONES (Institutional look) */}
+        {/* 🔴 LEFT RED ZONE */}
         <div
           className="absolute h-[2px]"
           style={{
             width: `${entryPercent}%`,
             background:
-              "linear-gradient(90deg, rgba(74,222,128,0.6), rgba(34,197,94,0.05))"
+              "linear-gradient(90deg, rgba(220,38,38,0.05), rgba(248,113,113,0.8))"
           }}
         />
 
+        {/* 🟢 RIGHT GREEN ZONE */}
         <div
           className="absolute h-[2px]"
           style={{
             left: `${entryPercent}%`,
             width: `${100 - entryPercent}%`,
             background:
-              "linear-gradient(90deg, rgba(74,222,128,0.8), rgba(34,197,94,0.15))"
+              "linear-gradient(90deg, rgba(74,222,128,0.8), rgba(34,197,94,0.05))"
           }}
         />
 
@@ -182,7 +161,7 @@ const isTPside =
 
         <div className="absolute right-0 w-3 h-3 rounded-full border border-neutral-400" />
 
-        {/* 🔥 INSTITUTIONAL LIVE PRICE DOT */}
+        {/* 🔥 LIVE PRICE DOT */}
         <div
           className="absolute"
           style={{
@@ -191,14 +170,14 @@ const isTPside =
             willChange: "transform"
           }}
         >
-          {/* trail glow */}
+          {/* glow trail */}
           <div
             className={`absolute -inset-2 rounded-full blur-md ${
               isTPside ? "bg-green-500/30" : "bg-red-500/30"
             }`}
           />
 
-          {/* core dot */}
+          {/* core */}
           <div
             className={`w-3 h-3 rounded-full ${
               isTPside ? "bg-green-400" : "bg-red-400"
