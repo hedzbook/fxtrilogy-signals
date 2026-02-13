@@ -80,7 +80,7 @@ export default function Page() {
   }
 
   return (
-    <main className="min-h-[100dvh] pb-[env(safe-area-inset-bottom)] bg-black text-white p-4 space-y-3">
+    <main className="min-h-[100dvh] pb-[env(safe-area-inset-bottom)] bg-black text-white p-4 space-y-2">
       {/* <h1 className="text-xl font-bold">FXHEDZ Signals</h1> */}
 
       {PAIRS.map(pair => {
