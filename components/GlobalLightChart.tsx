@@ -61,8 +61,8 @@ export default function GlobalLightChart({
                 borderColor: "rgba(255,255,255,0.08)",
                 timeVisible: true,
                 secondsVisible: false,
-                rightOffset: 5,
-                barSpacing: 10,
+                rightOffset: 50,
+                barSpacing: 9,
                 fixRightEdge: true
             }
         })
