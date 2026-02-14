@@ -4,8 +4,7 @@ import { useEffect, useRef } from "react"
 import {
   createChart,
   ColorType,
-  CrosshairMode,
-  CandlestickSeries
+  LineSeries
 } from "lightweight-charts"
 
 export default function GlobalLightChart({
@@ -21,85 +20,74 @@ export default function GlobalLightChart({
   const chartRef = useRef<any>(null)
   const seriesRef = useRef<any>(null)
 
-  // ====================================
-  // CREATE ONLY ONCE
-  // ====================================
+  // ======================================
+  // CREATE CHART
+  // ======================================
   useEffect(() => {
 
-    if (chartRef.current) return
+    if (!mountId) return
 
-    const container = document.createElement("div")
-    container.style.width = "100%"
-    container.style.height = "280px"
+    const container = document.getElementById(mountId)
+    if (!container) return
+
+    container.innerHTML = ""
 
     const chart = createChart(container, {
-
       layout: {
         background: { type: ColorType.Solid, color: "#1E1E1E" },
-        textColor: "#aaa"
+        textColor: "#888"
       },
-
       grid: {
         vertLines: { color: "rgba(255,255,255,0.03)" },
         horzLines: { color: "rgba(255,255,255,0.03)" }
       },
-
-      crosshair: { mode: CrosshairMode.Normal }
+      rightPriceScale: {
+        borderColor: "rgba(255,255,255,0.08)"
+      },
+      timeScale: {
+        borderColor: "rgba(255,255,255,0.08)",
+        timeVisible: true,
+        secondsVisible: true
+      }
     })
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-
-      upColor: "#22c55e",
-      downColor: "#ef4444",
-      borderUpColor: "#22c55e",
-      borderDownColor: "#ef4444",
-      wickUpColor: "#22c55e",
-      wickDownColor: "#ef4444"
+    // ✅ v5 API
+    const series = chart.addSeries(LineSeries, {
+      color: "#22c55e",
+      lineWidth: 2
     })
 
-    chartRef.current = { chart, container }
-    seriesRef.current = candleSeries
+    chartRef.current = chart
+    seriesRef.current = series
 
-    const now = Math.floor(Date.now() / 1000)
+    const resizeObserver = new ResizeObserver(() => {
+      chart.applyOptions({
+        width: container.clientWidth,
+        height: container.clientHeight
+      })
+    })
 
-    candleSeries.setData([
-      { time: now as any, open: price || 0, high: price || 0, low: price || 0, close: price || 0 }
-    ])
+    resizeObserver.observe(container)
 
-  }, [])
+    return () => {
+      resizeObserver.disconnect()
+      chart.remove()
+    }
 
-  // ====================================
-  // MOVE CHART INTO OPEN CARD
-  // ====================================
-  useEffect(() => {
+  }, [mountId, symbol])
 
-    if (!mountId) return
-    if (!chartRef.current) return
-
-    const mountEl = document.getElementById(mountId)
-    if (!mountEl) return
-
-    mountEl.innerHTML = ""
-    mountEl.appendChild(chartRef.current.container)
-
-  }, [mountId])
-
-  // ====================================
+  // ======================================
   // LIVE PRICE UPDATE
-  // ====================================
+  // ======================================
   useEffect(() => {
 
     if (!seriesRef.current || !price) return
 
-    const candleTime =
-      Math.floor(Date.now() / 60000) * 60
+    const time = Math.floor(Date.now() / 1000)
 
     seriesRef.current.update({
-      time: candleTime as any,
-      open: price,
-      high: price,
-      low: price,
-      close: price
+      time,
+      value: price
     })
 
   }, [price])
