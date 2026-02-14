@@ -292,8 +292,8 @@ ${liveDir === "EXIT"
                               ? "text-red-400"
                               : "text-sky-400"
                             }`}>
-                            {o.direction === "HEDGED"
-                              ? `HEDGED (${o.hedgeSide || "--"})`
+                            {o.hedged
+                              ? `${o.direction} (HEDGED)`
                               : o.direction}
 
                           </span>
