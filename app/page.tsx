@@ -265,7 +265,7 @@ export default function Page() {
     <main
       className="min-h-screen text-white p-4 space-y-3 transition-all duration-700"
       style={{
-        boxShadow: `inset 0 0 ${12 + liquidityPulse * 18}px rgba(255,255,255,0.015)`,
+        boxShadow: `inset 0 0 ${12 + liquidityPulse * 18}px rgba(255,255,255,0.03)`,
         background:
           netState === "NET BUY"
             ? `radial-gradient(circle at top, rgba(34,197,94,${0.04 + netIntensity * 0.12}), #000000)`
