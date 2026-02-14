@@ -36,7 +36,7 @@ export default function TradingViewChart({ symbol }: { symbol: string }) {
   }, [symbol])
 
   return (
-    <div className="w-full h-180 rounded-lg overflow-hidden bg-neutral-900">
+    <div className="w-full h-150 rounded-lg overflow-hidden bg-neutral-900">
       <div ref={container} className="tradingview-widget-container w-full h-full" />
     </div>
   )
