@@ -113,7 +113,7 @@ function PairCard({
       className={`border border-neutral-800 rounded-xl overflow-hidden transition-all active:scale-[0.99]
   ${liveDir === "EXIT"
           ? "bg-gradient-to-b from-neutral-900 to-neutral-950 opacity-80"
-          : "bg-neutral-900"}
+          : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"}
 `}
     >
       {/* HEADER */}
