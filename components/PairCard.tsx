@@ -4,6 +4,7 @@
 
 import React from "react"
 import { useState, useEffect } from "react"
+import TradingViewChart from "./TradingViewChart"
 
 type TradeDirection = "BUY" | "SELL" | "HEDGED" | "EXIT" | "--"
 
@@ -161,9 +162,7 @@ ${liveDir === "EXIT"
 
             {tab === "market" && (
               <>
-                <div className="w-full h-48 bg-neutral-800 rounded-lg flex items-center justify-center text-neutral-500">
-                  Chart will render here
-                </div>
+                <TradingViewChart symbol={pair} />
 
                 <div>
                   <div className="text-sm text-neutral-400">Latest Signal</div>
