@@ -221,46 +221,6 @@ export default function GlobalLightChart({
             title: "TP"
         })
 
-        const tpZone = chart.addSeries(LineSeries, {
-            color: "rgba(56,189,248,0.01)",
-            lineWidth: 1,
-            priceLineVisible: false,
-            lastValueVisible: false
-        })
-
-        tpZone.setData([
-            { time: Math.floor(Date.now() / 1000) - 100000, value: tp },
-            { time: Math.floor(Date.now() / 1000) + 100000, value: tp }
-        ])
-
-        tpZone.createPriceLine({
-            price: entry,
-            color: "rgba(56,189,248,0.18)",
-            lineWidth: 24
-        })
-
-        tpZoneRef.current = tpZone
-
-        const slZone = chart.addSeries(LineSeries, {
-            color: "rgba(239,68,68,0.01)",
-            lineWidth: 1,
-            priceLineVisible: false,
-            lastValueVisible: false
-        })
-
-        slZone.setData([
-            { time: Math.floor(Date.now() / 1000) - 100000, value: sl },
-            { time: Math.floor(Date.now() / 1000) + 100000, value: sl }
-        ])
-
-        slZone.createPriceLine({
-            price: entry,
-            color: "rgba(239,68,68,0.18)",
-            lineWidth: 24
-        })
-
-        slZoneRef.current = slZone
-
     }, [signal])
 
     return null
