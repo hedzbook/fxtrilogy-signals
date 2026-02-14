@@ -292,7 +292,10 @@ ${liveDir === "EXIT"
                               ? "text-red-400"
                               : "text-sky-400"
                             }`}>
-                            {o.direction}
+                            {o.direction === "HEDGED"
+                              ? `HEDGED (${signal?.direction === "BUY" ? "SELL" : "BUY"})`
+                              : o.direction}
+
                           </span>
 
                           <span className="text-neutral-500 text-xs">
