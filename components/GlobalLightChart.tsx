@@ -61,8 +61,8 @@ export default function GlobalLightChart({
                 borderColor: "rgba(255,255,255,0.08)",
                 timeVisible: true,
                 secondsVisible: false,
-                rightOffset: 50,
-                barSpacing: 9,
+                rightOffset: -25,
+                barSpacing: 8,
                 fixRightEdge: true
             }
         })
@@ -200,29 +200,26 @@ export default function GlobalLightChart({
         if (dir === "EXIT") return
         if (!entry || !sl || !tp) return
 
-entryLineRef.current = candleSeries.createPriceLine({
-    price: entry,
-    color: "#ffffff",
-    lineWidth: 2,
-    axisLabelVisible: false,
-    title: ""
-})
+        entryLineRef.current = candleSeries.createPriceLine({
+            price: entry,
+            color: "#ffffff",
+            lineWidth: 2,
+            title: "ENTRY"
+        })
 
-slLineRef.current = candleSeries.createPriceLine({
-    price: sl,
-    color: "#ef4444",
-    lineWidth: 1,
-    axisLabelVisible: false,
-    title: ""
-})
+        slLineRef.current = candleSeries.createPriceLine({
+            price: sl,
+            color: "#ef4444",
+            lineWidth: 1,
+            title: "STOP"
+        })
 
-tpLineRef.current = candleSeries.createPriceLine({
-    price: tp,
-    color: "#22c55e",
-    lineWidth: 1,
-    axisLabelVisible: false,
-    title: ""
-})
+        tpLineRef.current = candleSeries.createPriceLine({
+            price: tp,
+            color: "#22c55e",
+            lineWidth: 1,
+            title: "TP"
+        })
 
         const tpZone = chart.addSeries(LineSeries, {
             color: "rgba(56,189,248,0.01)",
