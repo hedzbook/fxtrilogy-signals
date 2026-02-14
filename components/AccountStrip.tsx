@@ -57,13 +57,13 @@ export default function AccountStrip({
     const intensity = Math.min(1, imbalance / totalVol)
     const pulse = Math.min(1, Math.abs(totalFloating) / (totalLots || 1))
 
-useEffect(() => {
+    useEffect(() => {
 
-    if (typeof onStateChange === "function") {
-        onStateChange(netState, intensity, pulse)
-    }
+        if (typeof onStateChange === "function") {
+            onStateChange(netState, intensity, pulse)
+        }
 
-}, [netState, intensity, pulse])
+    }, [netState, intensity, pulse])
 
     return (
         <div className="bg-neutral-900 border-b border-neutral-800 p-3 flex justify-between text-sm">
