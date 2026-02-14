@@ -75,6 +75,7 @@ export default function GlobalLightChart({
 
         chartRef.current = chart
         candleSeriesRef.current = candleSeries
+        historyLoadedRef.current = false
 
         const resizeObserver = new ResizeObserver(() => {
             chart.applyOptions({
@@ -95,6 +96,8 @@ export default function GlobalLightChart({
     // ======================================================
     // 🔥 LIVE CANDLE STREAM (ALWAYS MOVING)
     // ======================================================
+    const historyLoadedRef = useRef(false)
+
     useEffect(() => {
 
         const series = candleSeriesRef.current
@@ -111,8 +114,17 @@ export default function GlobalLightChart({
 
         if (!data.length) return
 
-        // 🔥 ALWAYS REFRESH LAST CANDLE (even on EXIT)
-        series.setData(data)
+        // 🔥 FIRST LOAD = SET HISTORY ONCE
+        if (!historyLoadedRef.current) {
+            series.setData(data)
+            historyLoadedRef.current = true
+            return
+        }
+
+        // 🔥 AFTER THAT = STREAM ONLY LAST BAR
+        const last = data[data.length - 1]
+
+        series.update(last)
 
     }, [signal?.candles, signal?.price])
 
