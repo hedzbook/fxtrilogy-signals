@@ -223,23 +223,7 @@ export default function Page() {
     })
   }
 
-  // ======================================================
-  // ACCESS BLOCK SCREEN
-  // ======================================================
-  if (!authorized) {
-    return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <div className="text-xl font-bold">FXHEDZ</div>
-          <div className="text-neutral-400 text-sm">
-            Open via Telegram Bot to access signals
-          </div>
-        </div>
-      </main>
-    )
-  }
-
-  // ======================================================
+    // ======================================================
   // 🔥 BUILD GLOBAL PAIRS DATA (FOR ACCOUNT STRIP)
   // ======================================================
   const pairsData = useMemo(() => {
@@ -257,6 +241,22 @@ export default function Page() {
     })
 
   }, [uiSignals, pairData])
+  
+  // ======================================================
+  // ACCESS BLOCK SCREEN
+  // ======================================================
+  if (!authorized) {
+    return (
+      <main className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="text-xl font-bold">FXHEDZ</div>
+          <div className="text-neutral-400 text-sm">
+            Open via Telegram Bot to access signals
+          </div>
+        </div>
+      </main>
+    )
+  }
 
   // ======================================================
   // MAIN UI
