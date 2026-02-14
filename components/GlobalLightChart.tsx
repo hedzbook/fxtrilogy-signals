@@ -173,52 +173,61 @@ export default function GlobalLightChart({
         // ==============================
         // HEDGED MODE
         // ==============================
-        if (dir === "HEDGED" && entry) {
+        const orders = signal?.orders || []
 
-            const hedgeBand = chart.addSeries(LineSeries, {
-                color: "rgba(56,189,248,0.02)",
-                lineWidth: 1,
-                priceLineVisible: false,
-                lastValueVisible: false
-            })
+        if (!orders.length) return
 
-            hedgeBand.setData([
-                { time: Math.floor(Date.now() / 1000) - 100000, value: entry },
-                { time: Math.floor(Date.now() / 1000) + 100000, value: entry }
-            ])
+        orders.forEach((o: any, index: number) => {
 
-            hedgeBand.createPriceLine({
+            const entry = Number(o.entry)
+            if (!entry) return
+
+            const color =
+                o.direction === "BUY"
+                    ? "#22c55e"
+                    : o.direction === "SELL"
+                        ? "#ef4444"
+                        : "#38bdf8"
+
+            // --------------------------------------------------
+            // ALWAYS DRAW ENTRY LINE (for all open positions)
+            // --------------------------------------------------
+            candleSeries.createPriceLine({
                 price: entry,
-                color: "rgba(56,189,248,0.35)",
-                lineWidth: 18
+                color,
+                lineWidth: 2,
+                title: o.direction
             })
 
-            hedgeBandRef.current = hedgeBand
-            return
-        }
+            // --------------------------------------------------
+            // ONLY DRAW TP/SL FOR MAIN ACTIVE SIGNAL
+            // (not for hedged or previous trades)
+            // --------------------------------------------------
 
-        if (dir === "EXIT") return
-        if (!entry || !sl || !tp) return
+            if (index === orders.length - 1) {
 
-        entryLineRef.current = candleSeries.createPriceLine({
-            price: entry,
-            color: "#ffffff",
-            lineWidth: 2,
-            title: "ENTRY"
-        })
+                const sl = Number(signal?.sl)
+                const tp = Number(signal?.tp)
 
-        slLineRef.current = candleSeries.createPriceLine({
-            price: sl,
-            color: "#ef4444",
-            lineWidth: 1,
-            title: "STOP"
-        })
+                if (sl) {
+                    candleSeries.createPriceLine({
+                        price: sl,
+                        color: "#ef4444",
+                        lineWidth: 1,
+                        title: "STOP"
+                    })
+                }
 
-        tpLineRef.current = candleSeries.createPriceLine({
-            price: tp,
-            color: "#22c55e",
-            lineWidth: 1,
-            title: "TP"
+                if (tp) {
+                    candleSeries.createPriceLine({
+                        price: tp,
+                        color: "#22c55e",
+                        lineWidth: 1,
+                        title: "TP"
+                    })
+                }
+            }
+
         })
 
     }, [signal])
