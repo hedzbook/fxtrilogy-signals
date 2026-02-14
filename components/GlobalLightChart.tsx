@@ -200,26 +200,29 @@ export default function GlobalLightChart({
         if (dir === "EXIT") return
         if (!entry || !sl || !tp) return
 
-        entryLineRef.current = candleSeries.createPriceLine({
-            price: entry,
-            color: "#ffffff",
-            lineWidth: 2,
-            title: "ENTRY"
-        })
+entryLineRef.current = candleSeries.createPriceLine({
+    price: entry,
+    color: "#ffffff",
+    lineWidth: 2,
+    axisLabelVisible: false,
+    title: ""
+})
 
-        slLineRef.current = candleSeries.createPriceLine({
-            price: sl,
-            color: "#ef4444",
-            lineWidth: 1,
-            title: "STOP"
-        })
+slLineRef.current = candleSeries.createPriceLine({
+    price: sl,
+    color: "#ef4444",
+    lineWidth: 1,
+    axisLabelVisible: false,
+    title: ""
+})
 
-        tpLineRef.current = candleSeries.createPriceLine({
-            price: tp,
-            color: "#22c55e",
-            lineWidth: 1,
-            title: "TP"
-        })
+tpLineRef.current = candleSeries.createPriceLine({
+    price: tp,
+    color: "#22c55e",
+    lineWidth: 1,
+    axisLabelVisible: false,
+    title: ""
+})
 
         const tpZone = chart.addSeries(LineSeries, {
             color: "rgba(56,189,248,0.01)",
