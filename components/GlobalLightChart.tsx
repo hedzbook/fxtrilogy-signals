@@ -33,8 +33,6 @@ export default function GlobalLightChart({
     const slLineRef = useRef<any>(null)
     const tpLineRef = useRef<any>(null)
 
-    const historyLoadedRef = useRef(false)
-
     // ======================================================
     // CREATE GLOBAL CHART
     // ======================================================
@@ -78,9 +76,6 @@ export default function GlobalLightChart({
         chartRef.current = chart
         candleSeriesRef.current = candleSeries
 
-        // 🔥 reset history when pair changes
-        historyLoadedRef.current = false
-
         const resizeObserver = new ResizeObserver(() => {
             chart.applyOptions({
                 width: container.clientWidth,
@@ -98,16 +93,15 @@ export default function GlobalLightChart({
     }, [mountId, symbol])
 
     // ======================================================
-    // LOAD REAL MT5 HISTORY (50 candles)
+    // 🔥 LIVE CANDLE STREAM (ALWAYS MOVING)
     // ======================================================
     useEffect(() => {
 
         const series = candleSeriesRef.current
         if (!series) return
         if (!signal?.candles) return
-        if (historyLoadedRef.current) return
 
-        const data = signal.candles.map((c:any) => ({
+        const data = signal.candles.map((c: any) => ({
             time: Number(c.time),
             open: Number(c.open),
             high: Number(c.high),
@@ -118,32 +112,8 @@ export default function GlobalLightChart({
         if (!data.length) return
 
         series.setData(data)
-        historyLoadedRef.current = true
 
     }, [signal?.candles])
-
-    // ======================================================
-    // LIVE LAST CANDLE UPDATE (MT5 SYNC)
-    // ======================================================
-    useEffect(() => {
-
-        const series = candleSeriesRef.current
-        if (!series) return
-        if (!signal?.candles) return
-        if (!historyLoadedRef.current) return
-
-        const last = signal.candles[signal.candles.length - 1]
-        if (!last) return
-
-        series.update({
-            time: Number(last.time),
-            open: Number(last.open),
-            high: Number(last.high),
-            low: Number(last.low),
-            close: Number(last.close)
-        })
-
-    }, [signal?.price, signal?.candles])
 
     // ======================================================
     // 🔥 ULTRA-PRO OVERLAY ENGINE
@@ -161,14 +131,14 @@ export default function GlobalLightChart({
         const sl = Number(signal?.sl)
         const tp = Number(signal?.tp)
 
-        const clearSeries = (ref:any) => {
+        const clearSeries = (ref: any) => {
             if (ref.current) {
                 chart.removeSeries(ref.current)
                 ref.current = null
             }
         }
 
-        const clearLine = (ref:any) => {
+        const clearLine = (ref: any) => {
             if (ref.current) {
                 candleSeries.removePriceLine(ref.current)
                 ref.current = null
@@ -196,8 +166,8 @@ export default function GlobalLightChart({
             })
 
             hedgeBand.setData([
-                { time: Math.floor(Date.now()/1000)-100000, value: entry },
-                { time: Math.floor(Date.now()/1000)+100000, value: entry }
+                { time: Math.floor(Date.now() / 1000) - 100000, value: entry },
+                { time: Math.floor(Date.now() / 1000) + 100000, value: entry }
             ])
 
             hedgeBand.createPriceLine({
@@ -242,8 +212,8 @@ export default function GlobalLightChart({
         })
 
         tpZone.setData([
-            { time: Math.floor(Date.now()/1000)-100000, value: tp },
-            { time: Math.floor(Date.now()/1000)+100000, value: tp }
+            { time: Math.floor(Date.now() / 1000) - 100000, value: tp },
+            { time: Math.floor(Date.now() / 1000) + 100000, value: tp }
         ])
 
         tpZone.createPriceLine({
@@ -262,8 +232,8 @@ export default function GlobalLightChart({
         })
 
         slZone.setData([
-            { time: Math.floor(Date.now()/1000)-100000, value: sl },
-            { time: Math.floor(Date.now()/1000)+100000, value: sl }
+            { time: Math.floor(Date.now() / 1000) - 100000, value: sl },
+            { time: Math.floor(Date.now() / 1000) + 100000, value: sl }
         ])
 
         slZone.createPriceLine({
