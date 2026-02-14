@@ -293,7 +293,7 @@ ${liveDir === "EXIT"
                               : "text-sky-400"
                             }`}>
                             {o.direction === "HEDGED"
-                              ? `HEDGED (${signal?.direction === "SELL" ? "BUY" : "BUY"})`
+                              ? `HEDGED (${signal?.direction === "BUY" ? "SELL" : "BUY"})`
                               : o.direction}
 
                           </span>
