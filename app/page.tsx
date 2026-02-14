@@ -28,6 +28,7 @@ export default function Page() {
   const [uiSignals, setUiSignals] = useState<any>({})
   const [netState, setNetState] = useState("FLAT")
   const [netIntensity, setNetIntensity] = useState(0)
+  const [liquidityPulse, setLiquidityPulse] = useState(0)
 
   // ======================================================
   // TELEGRAM MINIAPP GUARD
@@ -262,8 +263,9 @@ export default function Page() {
   // ======================================================
   return (
     <main
-      className="min-h-screen text-white p-4 space-y-3 transition-colors duration-500"
+      className="min-h-screen text-white p-4 space-y-3 transition-all duration-700"
       style={{
+        transform: `scale(${1 + liquidityPulse * 0.002})`,
         background:
           netState === "NET BUY"
             ? `radial-gradient(circle at top, rgba(34,197,94,${0.04 + netIntensity * 0.12}), #000000)`
@@ -278,9 +280,10 @@ export default function Page() {
       {/* 🔥 GLOBAL ACCOUNT RISK STRIP */}
       <AccountStrip
         pairs={pairsData}
-        onStateChange={(state: string, intensity: number) => {
+        onStateChange={(state: string, intensity: number, pulse: number) => {
           setNetState(state)
           setNetIntensity(intensity)
+          setLiquidityPulse(pulse)
         }}
       />
 
