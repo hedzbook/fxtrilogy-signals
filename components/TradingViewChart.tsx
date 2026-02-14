@@ -54,7 +54,7 @@ script.innerHTML = JSON.stringify({
   }, [symbol])
 
   return (
-    <div className="w-full h-120 rounded-lg overflow-hidden bg-neutral-900">
+    <div className="w-full h-100 rounded-lg overflow-hidden bg-neutral-900">
       <div ref={container} className="tradingview-widget-container w-full h-full" />
     </div>
   )
