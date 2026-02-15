@@ -154,21 +154,18 @@ export default function GlobalLightChart({
                     ? "#22c55e"
                     : "#ef4444"
 
-            // Better muted colors (visible but secondary)
-            const mutedColor =
-                o.direction === "BUY"
-                    ? "rgba(34,197,94,0.45)"
-                    : "rgba(239,68,68,0.45)"
+            // Neutral structural color
+            const neutralColor = "rgba(180,180,180,0.55)"
 
             const color =
                 isLatest && !isHedged
                     ? activeColor
-                    : mutedColor
+                    : neutralColor
 
             const entryLine = candleSeries.createPriceLine({
                 price: entry,
                 color,
-                lineWidth: isLatest && !isHedged ? 2 : 2, // keep thickness consistent
+                lineWidth: isLatest && !isHedged ? 3 : 2,
                 axisLabelVisible: isLatest && !isHedged,
                 title: isLatest && !isHedged ? (o.label || "") : ""
             })
