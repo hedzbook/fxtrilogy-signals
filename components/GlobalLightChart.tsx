@@ -92,50 +92,18 @@ export default function GlobalLightChart({
     // ======================================================
     useEffect(() => {
 
-        const series = candleSeriesRef.current
-        if (!series) return
-        if (!signal?.candles) return
-
-        const data = signal.candles.map((c: any) => ({
-            time: Number(c.time),
-            open: Number(c.open),
-            high: Number(c.high),
-            low: Number(c.low),
-            close: Number(c.close)
-        }))
-
-        if (!data.length) return
-
-        if (!historyLoadedRef.current) {
-            series.setData(data)
-            chartRef.current?.timeScale().scrollToPosition(8, false)
-            historyLoadedRef.current = true
-            return
-        }
-
-        series.update(data[data.length - 1])
-
-    }, [signal?.candles])
-
-    // ======================================================
-    // OVERLAY ENGINE (MT5 MIRROR LOGIC)
-    // ======================================================
-    useEffect(() => {
-
-        const series = candleSeriesRef.current
-        if (!series || !signal) return
+        const candleSeries = candleSeriesRef.current
+        if (!candleSeries || !signal) return
 
         // Clear old lines
         dynamicLinesRef.current.forEach((l: any) => {
-            series.removePriceLine(l)
+            candleSeries.removePriceLine(l)
         })
         dynamicLinesRef.current = []
 
         let orders = signal?.orders || []
 
-        // Fallback if orders not synced yet
         if (!orders.length && signal?.direction && signal?.entry) {
-
             orders = [{
                 label: signal.direction === "BUY" ? "B1" : "S1",
                 entry: signal.entry,
@@ -145,44 +113,47 @@ export default function GlobalLightChart({
 
         if (!orders.length) return
 
+        const isHedged = signal?.direction === "HEDGED"
+
         orders.forEach((o: any, index: number) => {
 
             const entry = Number(o.entry)
             if (!entry) return
-
-            const isLatest = index === orders.length - 1
 
             const color =
                 o.direction === "BUY"
                     ? "#22c55e"
                     : "#ef4444"
 
-            // ENTRY LINE
-            const entryLine = series.createPriceLine({
+            const isLatest = index === orders.length - 1
+
+            // ENTRY lines always drawn
+            const entryLine = candleSeries.createPriceLine({
                 price: entry,
                 color,
-                lineWidth: isLatest ? 2 : 1,
-                axisLabelVisible: isLatest,
+                lineWidth: isHedged ? 1 : (isLatest ? 2 : 1),
+                axisLabelVisible: true,
                 title: o.label || ""
             })
 
             dynamicLinesRef.current.push(entryLine)
 
-            // Only latest gets SL / TP
+            // 🔥 STOP HERE if hedged
+            if (isHedged) return
+
+            // Only latest non-hedged order gets SL/TP
             if (!isLatest) return
 
             const sl = Number(signal?.sl)
             const tp = Number(signal?.tp)
 
-            // HEDGE LABEL
             if (sl) {
-
                 const hedgeLabel =
                     o.direction === "BUY"
                         ? "SS"
                         : "BS"
 
-                const slLine = series.createPriceLine({
+                const slLine = candleSeries.createPriceLine({
                     price: sl,
                     color: "#ef4444",
                     lineWidth: 1,
@@ -193,8 +164,7 @@ export default function GlobalLightChart({
             }
 
             if (tp) {
-
-                const tpLine = series.createPriceLine({
+                const tpLine = candleSeries.createPriceLine({
                     price: tp,
                     color: "#22c55e",
                     lineWidth: 1,
