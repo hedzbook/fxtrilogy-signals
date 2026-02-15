@@ -153,7 +153,7 @@ ${liveDir === "EXIT"
           </div>
 
           {/* ======================= TAB CONTENT AREA 🔑 FIXED HEIGHT + SCROLL ======================== */}
-          <div className="h-[60dvh] overflow-y-auto overscroll-contain touch-pan-y p-4 space-y-4">
+          <div className="h-[75dvh] overflow-y-auto overscroll-contain touch-pan-y p-4 space-y-4">
 
             {/* 🔥 GLOBAL CHART MOUNT POINT (ALWAYS MOUNTED — NEVER REMOVE) */}
             <div
@@ -187,7 +187,7 @@ ${liveDir === "EXIT"
                 <div>
                   <div className="text-sm text-neutral-400 mb-2">Active Orders</div>
 
-                  <div className="max-h-[250px] overflow-y-auto space-y-1 pr-1">
+                  <div className="max-h-[200px] overflow-y-auto space-y-1 pr-1">
                     {liveOrders?.length ? liveOrders.map((o, i) => {
 
                       const key = o.id || `${o.direction}_${o.entry}_${o.time}`
