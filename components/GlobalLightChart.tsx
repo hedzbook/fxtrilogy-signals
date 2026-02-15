@@ -35,8 +35,7 @@ export default function GlobalLightChart({
 useEffect(() => {
 
     const candleSeries = candleSeriesRef.current
-    if (!candleSeries) return
-    if (!signal) return
+    if (!candleSeries || !signal) return
 
     // 🔴 Clear old lines
     dynamicLinesRef.current.forEach((l: any) => {
@@ -44,7 +43,18 @@ useEffect(() => {
     })
     dynamicLinesRef.current = []
 
-    const orders = signal?.orders || []
+    let orders = signal?.orders || []
+
+    // 🔥 Fallback if orders not yet synced
+    if (!orders.length && signal?.direction && signal?.entry) {
+
+        orders = [{
+            label: signal.direction === "BUY" ? "B1" : "S1",
+            entry: signal.entry,
+            direction: signal.direction
+        }]
+    }
+
     if (!orders.length) return
 
     orders.forEach((o: any, index: number) => {
@@ -52,34 +62,37 @@ useEffect(() => {
         const entry = Number(o.entry)
         if (!entry) return
 
+        const isLatest = index === orders.length - 1
+
         const color =
             o.direction === "BUY"
                 ? "#22c55e"
                 : "#ef4444"
 
-        const isLatest = index === orders.length - 1
-
-        // ==============================
-        // ENTRY LINE (B1, S1, B2 etc)
-        // ==============================
+        // ======================
+        // ENTRY LINE (B1, S1...)
+        // ======================
         const entryLine = candleSeries.createPriceLine({
             price: entry,
             color,
             lineWidth: isLatest ? 2 : 1,
+            axisLabelVisible: isLatest,
             title: o.label || ""
         })
 
         dynamicLinesRef.current.push(entryLine)
 
-        // Only latest order gets SL / TP
+        // Only latest gets SL / TP
         if (!isLatest) return
 
         const sl = Number(signal?.sl)
         const tp = Number(signal?.tp)
 
-        // ==============================
-        // HEDGE LABEL (SS / BS)
-        // ==============================
+        // ======================
+        // HEDGE LABEL
+        // BUY → SS
+        // SELL → BS
+        // ======================
         if (sl) {
 
             const hedgeLabel =
