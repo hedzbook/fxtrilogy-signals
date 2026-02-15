@@ -187,7 +187,7 @@ ${liveDir === "EXIT"
                 <div>
                   <div className="text-sm text-neutral-400 mb-2">Active Orders</div>
 
-                  <div className="max-h-[150px] overflow-y-auto space-y-1 pr-1">
+                  <div className="max-h-[175px] overflow-y-auto space-y-1 pr-1">
                     {liveOrders?.length ? liveOrders.map((o, i) => {
 
                       const key = o.id || `${o.direction}_${o.entry}_${o.time}`
