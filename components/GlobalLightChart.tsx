@@ -157,8 +157,8 @@ export default function GlobalLightChart({
             // Better muted colors (visible but secondary)
             const mutedColor =
                 o.direction === "BUY"
-                    ? "rgba(34,197,94,0.25)"
-                    : "rgba(239,68,68,0.25)"
+                    ? "rgba(34,197,94,0.45)"
+                    : "rgba(239,68,68,0.45)"
 
             const color =
                 isLatest && !isHedged
