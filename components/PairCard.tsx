@@ -142,9 +142,7 @@ ${liveDir === "EXIT"
       {open && (
         <div className="border-t border-neutral-800 p-0">
 
-          {/* =======================
-        HORIZONTAL MENU
-    ======================== */}
+          {/* ======================= HORIZONTAL MENU ======================== */}
           <div className="flex w-full border-b border-neutral-800 text-sm">
 
             <TabBtn label="Market" active={tab === "market"} onClick={() => setTab("market")} />
@@ -154,10 +152,7 @@ ${liveDir === "EXIT"
 
           </div>
 
-          {/* =======================
-        TAB CONTENT AREA
-        🔑 FIXED HEIGHT + SCROLL
-    ======================== */}
+          {/* ======================= TAB CONTENT AREA 🔑 FIXED HEIGHT + SCROLL ======================== */}
           <div className="h-[60dvh] overflow-y-auto overscroll-contain touch-pan-y p-4 space-y-4">
 
             {/* 🔥 GLOBAL CHART MOUNT POINT (ALWAYS MOUNTED — NEVER REMOVE) */}
@@ -173,10 +168,8 @@ ${liveDir === "EXIT"
               />
             )}
 
-            {/* =======================
-   MARKET TAB CONTENT
-======================= */}
-            <div className={tab === "market" ? "block" : "hidden"}>
+            {/* ======================= MARKET TAB CONTENT ======================= */}
+            <div className={`${tab === "market" ? "block" : "hidden"} -mt-2 space-y-3`}>
 
               <div>
                 <div className="text-sm text-neutral-400">Latest Signal</div>
@@ -189,12 +182,12 @@ ${liveDir === "EXIT"
               </div>
 
               {/* MARKET NOTES */}
-              <div className="bg-neutral-800 rounded-lg p-3 text-sm text-neutral-300 leading-relaxed">
+              <div className="bg-neutral-800 rounded-lg p-2 text-sm text-neutral-300">
                 {/* ACTIVE ORDERS */}
                 <div>
                   <div className="text-sm text-neutral-400 mb-2">Active Orders</div>
 
-                  <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1">
+                  <div className="max-h-[180px] overflow-y-auto space-y-1 pr-1">
                     {liveOrders?.length ? liveOrders.map((o, i) => {
 
                       const key = o.id || `${o.direction}_${o.entry}_${o.time}`
@@ -215,7 +208,7 @@ ${liveDir === "EXIT"
                       return (
                         <div
                           key={key}
-                          className={`bg-neutral-800 p-3 rounded-lg text-sm flex justify-between transition-all duration-300 ${pulseClass}`}
+                          className={`bg-neutral-800 p-2 rounded-md text-xs flex justify-between transition-all duration-300 ${pulseClass}`}
                         >
 
                           <div className="space-y-1">
