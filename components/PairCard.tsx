@@ -4,6 +4,7 @@
 
 import React from "react"
 import { useState, useEffect } from "react"
+import GlobalLightChart from "./GlobalLightChart"
 
 type TradeDirection = "BUY" | "SELL" | "HEDGED" | "EXIT" | "--"
 
@@ -165,6 +166,12 @@ ${liveDir === "EXIT"
               className={`w-full h-[280px] rounded-lg bg-neutral-900 ${tab === "market" ? "block" : "hidden"
                 }`}
             />
+{tab === "market" && (
+  <GlobalLightChart
+    mountId={`chart_mount_${pair}`}
+    signal={signal}
+  />
+)}
 
             {/* =======================
    MARKET TAB CONTENT
