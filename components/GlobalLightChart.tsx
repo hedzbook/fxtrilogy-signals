@@ -141,62 +141,77 @@ export default function GlobalLightChart({
 
         const isHedged = signal?.direction === "HEDGED"
 
-        orders.forEach((o: any, index: number) => {
+orders.forEach((o: any, index: number) => {
 
-            const entry = Number(o.entry)
-            if (!entry) return
+    const entry = Number(o.entry)
+    if (!entry) return
 
-            const color =
-                o.direction === "BUY"
-                    ? "#22c55e"
-                    : "#ef4444"
+    const isLatest = index === orders.length - 1
+    const isHedged = signal?.direction === "HEDGED"
 
-            const isLatest = index === orders.length - 1
+    // ----------------------------------
+    // COLOR LOGIC
+    // ----------------------------------
+    const activeColor =
+        o.direction === "BUY"
+            ? "#22c55e"
+            : "#ef4444"
 
-            const entryLine = candleSeries.createPriceLine({
-                price: entry,
-                color,
-                lineWidth: isHedged ? 1 : (isLatest ? 2 : 1),
-                axisLabelVisible: true,
-                title: o.label || ""
-            })
+    const inactiveColor = "rgba(180,180,180,0.35)"
 
-            dynamicLinesRef.current.push(entryLine)
+    const color = isLatest && !isHedged
+        ? activeColor
+        : inactiveColor
 
-            if (isHedged) return
-            if (!isLatest) return
+    const entryLine = candleSeries.createPriceLine({
+        price: entry,
+        color,
+        lineWidth: isLatest && !isHedged ? 2 : 1,
+        axisLabelVisible: isLatest && !isHedged,
+        title: isLatest && !isHedged ? (o.label || "") : ""
+    })
 
-            const sl = Number(signal?.sl)
-            const tp = Number(signal?.tp)
+    dynamicLinesRef.current.push(entryLine)
 
-            if (sl) {
-                const hedgeLabel =
-                    o.direction === "BUY"
-                        ? "SS"
-                        : "BS"
+    // -------------------------------
+    // STOP IF HEDGED
+    // -------------------------------
+    if (isHedged) return
 
-                const slLine = candleSeries.createPriceLine({
-                    price: sl,
-                    color: "#ef4444",
-                    lineWidth: 1,
-                    title: hedgeLabel
-                })
+    // Only latest non-hedged gets SL/TP
+    if (!isLatest) return
 
-                dynamicLinesRef.current.push(slLine)
-            }
+    const sl = Number(signal?.sl)
+    const tp = Number(signal?.tp)
 
-            if (tp) {
-                const tpLine = candleSeries.createPriceLine({
-                    price: tp,
-                    color: "#22c55e",
-                    lineWidth: 1,
-                    title: "TP"
-                })
+    if (sl) {
+        const hedgeLabel =
+            o.direction === "BUY"
+                ? "SS"
+                : "BS"
 
-                dynamicLinesRef.current.push(tpLine)
-            }
-
+        const slLine = candleSeries.createPriceLine({
+            price: sl,
+            color: "#ef4444",
+            lineWidth: 1,
+            title: hedgeLabel
         })
+
+        dynamicLinesRef.current.push(slLine)
+    }
+
+    if (tp) {
+        const tpLine = candleSeries.createPriceLine({
+            price: tp,
+            color: "#22c55e",
+            lineWidth: 1,
+            title: "TP"
+        })
+
+        dynamicLinesRef.current.push(tpLine)
+    }
+
+})
 
     }, [signal])
 
