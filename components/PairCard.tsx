@@ -70,36 +70,30 @@ function PairCard({
   }, [signal?.price, dir, liveDir])
 
   useEffect(() => {
-    if (liveDir === "EXIT") setLiveOrders([])
+    if (liveDir === "EXIT") setLiveOrders([]) // Clear orders on exit
   }, [liveDir])
 
   return (
     <div
-      className={`
-    border border-neutral-800 rounded-xl overflow-hidden
-    transition-all duration-300
-    ${isMin ? "h-full flex flex-col justify-center" : ""}
-    ${liveDir === "EXIT"
-          ? "bg-gradient-to-b from-neutral-900 to-neutral-950 border-neutral-800/60"
-          : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"
-        }
-  `}
+      className={`border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300
+        ${isMin ? "h-full flex flex-col justify-between" : ""} 
+        ${liveDir === "EXIT"
+        ? "bg-gradient-to-b from-neutral-900 to-neutral-950 opacity-100 border-neutral-800/60"
+        : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"
+      }`}
     >
+
       {/* ================= HEADER ================= */}
       <div
         className={`
-  cursor-pointer
-  ${isMin
-            ? "h-full flex items-center px-[clamp(10px,3vw,20px)]"
-            : "p-4"}
-`}
+          ${isMin ? "p-2" : "p-4"} cursor-pointer
+          ${isMin ? "h-full flex items-center px-[clamp(10px,3vw,20px)]" : ""}
+        `}
         onClick={(e) => {
           e.stopPropagation()
-
           if (!isMax) {
             onToggle()
           }
-
         }}
       >
 
@@ -144,15 +138,13 @@ function PairCard({
 
           </div>
         ) : (
-
           /* ================= MID / MAX HEADER ================= */
-
           <div className="w-full">
 
             <div className="flex justify-between items-center">
-              <div className="font-semibold">{pair}</div>
+              <div className="font-semibold text-[clamp(14px,2.2vw,20px)]">{pair}</div>
 
-              <div className={`font-bold ${liveDir === "BUY"
+              <div className={`font-bold text-[clamp(14px,2.2vw,20px)] ${liveDir === "BUY"
                 ? "text-green-400"
                 : liveDir === "SELL"
                   ? "text-red-400"
