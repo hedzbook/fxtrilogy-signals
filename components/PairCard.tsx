@@ -76,15 +76,14 @@ function PairCard({
           <div className="font-semibold">{pair}</div>
 
           <div
-            className={`font-bold ${
-              liveDir === "BUY"
-                ? "text-green-400"
-                : liveDir === "SELL"
-                  ? "text-red-400"
-                  : liveDir === "HEDGED"
-                    ? "text-sky-400"
-                    : "text-neutral-500"
-            }`}
+            className={`font-bold ${liveDir === "BUY"
+              ? "text-green-400"
+              : liveDir === "SELL"
+                ? "text-red-400"
+                : liveDir === "HEDGED"
+                  ? "text-sky-400"
+                  : "text-neutral-500"
+              }`}
           >
             {liveDir}
           </div>
@@ -106,14 +105,19 @@ function PairCard({
         )}
 
         {/* TradeBar hidden in MIN mode */}
-{liveDir !== "EXIT" &&
-  (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
-    <TradeBar 
-      signal={signal} 
-      direction={liveDir} 
-      viewMode={viewMode}
-    />
-)}
+        {liveDir !== "EXIT" &&
+          (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
+            isMin
+              ? <CompactTradeStrip
+                signal={signal}
+                direction={liveDir}
+              />
+              : <TradeBar
+                signal={signal}
+                direction={liveDir}
+                viewMode={viewMode}
+              />
+          )}
       </div>
 
       {/* ================= MIN MODE = HEADER ONLY ================= */}
@@ -136,9 +140,8 @@ function PairCard({
             {/* Chart Mount */}
             <div
               id={`chart_mount_${pair}`}
-              className={`w-full h-[280px] rounded-lg bg-neutral-900 ${
-                tab === "market" ? "block" : "hidden"
-              }`}
+              className={`w-full h-[280px] rounded-lg bg-neutral-900 ${tab === "market" ? "block" : "hidden"
+                }`}
             />
 
             {tab === "market" && (
@@ -180,11 +183,10 @@ function PairCard({
                         >
 
                           <div>
-                            <div className={`font-semibold ${
-                              o.direction === "BUY"
-                                ? "text-green-400"
-                                : "text-red-400"
-                            }`}>
+                            <div className={`font-semibold ${o.direction === "BUY"
+                              ? "text-green-400"
+                              : "text-red-400"
+                              }`}>
                               {o.direction}
                             </div>
 
@@ -221,6 +223,122 @@ function PairCard({
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function CompactTradeStrip({
+  signal,
+  direction
+}: {
+  signal: any
+  direction?: TradeDirection
+}) {
+
+  if (!signal?.entry) return null
+  if (direction === "EXIT") return null
+
+  const sl = Number(signal?.sl)
+  const tp = Number(signal?.tp)
+  const entry = Number(signal?.entry)
+  const price = Number(signal?.price || entry)
+
+  if (!sl || !tp) return null
+
+  const entryPercent = 50
+  let pricePercent = 50
+
+  if (direction === "BUY") {
+    const leftRange = Math.abs(entry - sl)
+    const rightRange = Math.abs(tp - entry)
+
+    if (price < entry && leftRange > 0)
+      pricePercent = 50 - ((entry - price) / leftRange) * 50
+
+    if (price > entry && rightRange > 0)
+      pricePercent = 50 + ((price - entry) / rightRange) * 50
+  }
+
+  if (direction === "SELL") {
+    const leftRange = Math.abs(tp - entry)
+    const rightRange = Math.abs(entry - sl)
+
+    if (price > entry && rightRange > 0)
+      pricePercent = 50 - ((price - entry) / rightRange) * 50
+
+    if (price < entry && leftRange > 0)
+      pricePercent = 50 + ((entry - price) / leftRange) * 50
+  }
+
+  pricePercent = Math.max(0, Math.min(100, pricePercent))
+
+  const isTPside =
+    direction === "BUY"
+      ? price >= entry
+      : price <= entry
+
+  return (
+    <div className="mt-2">
+
+      <div className="relative h-3 flex items-center">
+
+        {/* LEFT ZONE */}
+        <div
+          className="absolute h-[2px]"
+          style={{
+            width: "50%",
+            background:
+              "linear-gradient(90deg, rgba(248,113,113,0.8), rgba(239,68,68,0.05))"
+          }}
+        />
+
+        {/* RIGHT ZONE */}
+        <div
+          className="absolute h-[2px]"
+          style={{
+            left: "50%",
+            width: "50%",
+            background:
+              "linear-gradient(90deg, rgba(34,197,94,0.05), rgba(74,222,128,0.8))"
+          }}
+        />
+
+        {/* PRICE DOT */}
+        <div
+          className="absolute"
+          style={{
+            left: `${pricePercent}%`,
+            transform: "translateX(-50%)",
+            transition: "left 350ms cubic-bezier(0.22,1,0.36,1)"
+          }}
+        >
+          <div
+            className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
+              }`}
+          />
+
+          <div
+            className={`w-2.5 h-2.5 rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
+              }`}
+            style={{
+              boxShadow: isTPside
+                ? "0 0 14px rgba(74,222,128,0.9)"
+                : "0 0 14px rgba(248,113,113,0.9)",
+              animation: "instPulse 1.6s ease-in-out infinite"
+            }}
+          />
+        </div>
+
+      </div>
+
+      <style jsx>{`
+        @keyframes instPulse {
+          0% { transform: scale(0.85); opacity:.7 }
+          50% { transform: scale(1.2); opacity:1 }
+          100% { transform: scale(0.85); opacity:.7 }
+        }
+      `}</style>
+
     </div>
   )
 }
@@ -400,15 +518,13 @@ function TradeBar({
           }}
         >
           <div
-            className={`absolute -inset-2 rounded-full blur-md ${
-              isTPside ? "bg-green-500/30" : "bg-red-500/30"
-            }`}
+            className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
+              }`}
           />
 
           <div
-            className={`w-2.5 h-2.5 rounded-full ${
-              isTPside ? "bg-green-400" : "bg-red-400"
-            }`}
+            className={`w-2.5 h-2.5 rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
+              }`}
             style={{
               boxShadow: isTPside
                 ? "0 0 14px rgba(74,222,128,0.9)"
@@ -457,11 +573,10 @@ function TabBtn({
         e.stopPropagation()
         onClick()
       }}
-      className={`flex-1 py-3 text-center transition-all duration-200 ${
-        active
-          ? "text-white border-b-2 border-white bg-neutral-900"
-          : "text-neutral-500 hover:text-neutral-300"
-      }`}
+      className={`flex-1 py-3 text-center transition-all duration-200 ${active
+        ? "text-white border-b-2 border-white bg-neutral-900"
+        : "text-neutral-500 hover:text-neutral-300"
+        }`}
     >
       {label}
     </button>
