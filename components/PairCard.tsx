@@ -103,7 +103,7 @@ function PairCard({
 
       {/* CENTER STRIP (constrained width) */}
       <div className="flex justify-center">
-        <div className="w-[70%]">
+        <div className="w-[60%]">
           {liveDir !== "EXIT" &&
             (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
               <InlineTradeStrip
