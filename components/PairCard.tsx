@@ -425,7 +425,7 @@ function InlineTradeStrip({ signal, direction }: any) {
   return (
     <div className="flex flex-col items-center">
 
-      <div className="relative w-full h-[10px] text-[8px] text-neutral-400 mb-1">
+      <div className="relative w-full h-[10px] text-[clamp(8px,1.2vw,14px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL/HEDZ</span>
         <span className="absolute left-1/2 -translate-x-1/2">ENTRY</span>
         <span className="absolute right-0">TP</span>
@@ -438,9 +438,9 @@ function InlineTradeStrip({ signal, direction }: any) {
         <div className="absolute left-0 h-[2px] w-1/2 bg-red-500/70" />
         <div className="absolute right-0 h-[2px] w-1/2 bg-green-500/70" />
 
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-neutral-500 bg-black" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-neutral-500 bg-black" />
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1vw,14px)] h-[clamp(6px,1vw,14px)] rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[clamp(6px,1vw,14px)] h-[clamp(6px,1vw,14px)] rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1vw,14px)] h-[clamp(6px,1vw,14px)] rounded-full border border-neutral-500 bg-black" />
 
         <div
           className="absolute top-1/2"
@@ -452,13 +452,13 @@ function InlineTradeStrip({ signal, direction }: any) {
         >
           <div className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
             }`} />
-          <div className={`w-2 h-2 rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
+          <div className={`w-[clamp(6px,1vw,14px)] h-[clamp(6px,1vw,14px)] rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
             }`} />
         </div>
 
       </div>
 
-      <div className="w-full flex justify-between text-[8px] text-neutral-400 mt-1">
+      <div className="w-full flex justify-between text-[clamp(8px,1.2vw,14px)] text-neutral-400 mt-1">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
@@ -523,7 +523,7 @@ function TradeBar({
   return (
     <div className="mt-3 select-none">
 
-      <div className="relative h-3 text-[10px] text-neutral-400 mb-1">
+      <div className="relative h-3 text-[clamp(10px,1.4vw,16px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL / HEDZ</span>
         <span
           className="absolute"
@@ -558,15 +558,15 @@ function TradeBar({
           }}
         />
 
-        <div className="absolute left-0 w-3 h-3 rounded-full border border-neutral-400" />
+        <div className="absolute left-0 w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full border border-neutral-400" />
         <div
-          className="absolute w-3 h-3 rounded-full border border-neutral-400"
+          className="absolute w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full border border-neutral-400"
           style={{
             left: `${entryPercent}%`,
             transform: "translateX(-50%)"
           }}
         />
-        <div className="absolute right-0 w-3 h-3 rounded-full border border-neutral-400" />
+        <div className="absolute right-0 w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full border border-neutral-400" />
 
         <div
           className="absolute"
@@ -581,14 +581,14 @@ function TradeBar({
               }`}
           />
           <div
-            className={`w-3 h-3 rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
+            className={`w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
               }`}
           />
         </div>
 
       </div>
 
-      <div className="flex justify-between text-[11px] text-neutral-400 mt-1">
+      <div className="flex justify-between text-[clamp(11px,1.4vw,16px)] text-neutral-400 mt-1">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
