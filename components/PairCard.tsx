@@ -24,6 +24,7 @@ type Props = {
 function PairCard({
   pair,
   open,
+  viewMode = "MIN",
   onToggle,
   direction,
   signal,
@@ -31,7 +32,7 @@ function PairCard({
   orders,
   performance,
   notes
-}: Props) {
+}: Props){
 
   const dir: TradeDirection = direction ?? "--"
   const [liveDir, setLiveDir] = useState<TradeDirection>(dir)
