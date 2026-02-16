@@ -29,6 +29,7 @@ export default function AccountStrip({
             if (pos.direction === "BUY") buyVol += lot
             if (pos.direction === "SELL") sellVol += lot
         })
+
     })
 
     const netState =
@@ -52,32 +53,32 @@ export default function AccountStrip({
     }, [netState, intensity, pulse])
 
     return (
-        <div className="bg-gradient-to-b from-neutral-900 to-neutral-950 border-b border-neutral-800 shadow-[0_6px_20px_rgba(0,0,0,0.6)] backdrop-blur h-14 flex items-center">
+        <div className="bg-gradient-to-b from-neutral-900 to-neutral-950 border-b border-neutral-800 h-14 flex items-center shadow-[0_6px_20px_rgba(0,0,0,0.6)]">
 
-            {/* INNER WRAPPER — aligns with PairCard px-4 */}
-            <div className="px-4 w-full flex justify-between items-center text-sm">
+            {/* 🔥 CONTENT WRAPPER (MATCHES px-4 BELOW CARDS) */}
+            <div className="px-4 w-full flex items-center relative text-sm">
 
-                {/* LEFT */}
-                <div className="flex items-center gap-4">
-                    <div>
-                        <span className="text-neutral-400 mr-2">LOTS</span>
-                        <span className="font-semibold">{totalLots.toFixed(2)}</span>
-                    </div>
-
-                    <div>
-                        <span className="text-neutral-400 mr-2">~PnL</span>
-                        <span className={totalFloating >= 0 ? "text-green-400 font-semibold" : "text-red-400 font-semibold"}>
-                            {totalFloating.toFixed(2)}
-                        </span>
-                    </div>
+                {/* LEFT — LOTS */}
+                <div className="font-semibold min-w-[90px]">
+                    <span className="text-neutral-400 mr-2">LOTS</span>
+                    {totalLots.toFixed(2)}
                 </div>
 
-                {/* RIGHT */}
-                <div className="font-semibold text-sky-400 tracking-wide">
+                {/* CENTER — PNL */}
+                <div className="absolute left-1/2 -translate-x-1/2 font-semibold">
+                    <span className="text-neutral-400 mr-2">~PnL</span>
+                    <span className={totalFloating >= 0 ? "text-green-400" : "text-red-400"}>
+                        {totalFloating.toFixed(2)}
+                    </span>
+                </div>
+
+                {/* RIGHT — NET STATE */}
+                <div className="ml-auto font-semibold text-sky-400">
                     {netState}
                 </div>
 
             </div>
+
         </div>
     )
 }
