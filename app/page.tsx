@@ -198,7 +198,7 @@ export default function Page() {
     {/* LEFT SIDE */}
     <div className="flex items-center gap-2 z-10">
 
-      <div className="w-3 h-5 flex flex-col justify-center gap-[3px] cursor-pointer">
+      <div className="w-2 h-5 flex flex-col justify-center gap-[3px] cursor-pointer">
         <div className="h-[2px] w-3 bg-neutral-400" />
         <div className="h-[2px] w-3 bg-neutral-400" />
         <div className="h-[2px] w-3 bg-neutral-400" />
