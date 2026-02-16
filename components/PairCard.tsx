@@ -84,7 +84,7 @@ function PairCard({
 
       {/* ================= HEADER ================= */}
       <div
-        className="p-4 cursor-pointer"
+        className={`${isMin ? "p-2" : "p-4"} cursor-pointer`}
         onClick={(e) => {
           e.stopPropagation()
 
@@ -117,12 +117,12 @@ function PairCard({
 
             <div className="flex flex-col items-end">
               <div className={`font-bold text-sm ${liveDir === "BUY"
-                  ? "text-green-400"
-                  : liveDir === "SELL"
-                    ? "text-red-400"
-                    : liveDir === "HEDGED"
-                      ? "text-sky-400"
-                      : "text-neutral-500"
+                ? "text-green-400"
+                : liveDir === "SELL"
+                  ? "text-red-400"
+                  : liveDir === "HEDGED"
+                    ? "text-sky-400"
+                    : "text-neutral-500"
                 }`}>
                 {liveDir}
               </div>
@@ -145,12 +145,12 @@ function PairCard({
               <div className="font-semibold">{pair}</div>
 
               <div className={`font-bold ${liveDir === "BUY"
-                  ? "text-green-400"
-                  : liveDir === "SELL"
-                    ? "text-red-400"
-                    : liveDir === "HEDGED"
-                      ? "text-sky-400"
-                      : "text-neutral-500"
+                ? "text-green-400"
+                : liveDir === "SELL"
+                  ? "text-red-400"
+                  : liveDir === "HEDGED"
+                    ? "text-sky-400"
+                    : "text-neutral-500"
                 }`}>
                 {liveDir}
               </div>
@@ -244,8 +244,8 @@ function PairCard({
                         >
                           <div>
                             <div className={`font-semibold ${o.direction === "BUY"
-                                ? "text-green-400"
-                                : "text-red-400"
+                              ? "text-green-400"
+                              : "text-red-400"
                               }`}>
                               {o.direction}
                             </div>
@@ -349,8 +349,8 @@ function TabBtn({ label, active, onClick }: any) {
     <button
       onClick={(e) => { e.stopPropagation(); onClick() }}
       className={`flex-1 py-3 text-center transition-all duration-200 ${active
-          ? "text-white border-b-2 border-white bg-neutral-900"
-          : "text-neutral-500 hover:text-neutral-300"
+        ? "text-white border-b-2 border-white bg-neutral-900"
+        : "text-neutral-500 hover:text-neutral-300"
         }`}
     >
       {label}
