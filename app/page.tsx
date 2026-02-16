@@ -18,7 +18,7 @@ const PAIRS = [
 
 const SIGNAL_API = "/api/signals"
 
-type ViewMode = "MIN" | "MID" | "MAX"
+type ViewMode = "MIN" | "MAX"
 
 export default function Page() {
 
@@ -126,13 +126,13 @@ export default function Page() {
   function togglePair(pair: string) {
 
     if (viewMode === "MIN") {
-      setViewMode("MID")
       setOpenPair(pair)
+      setViewMode("MAX")
       return
     }
 
-    if (viewMode === "MID") {
-      setOpenPair(prev => prev === pair ? null : pair)
+    if (viewMode === "MAX") {
+      setOpenPair(pair)
     }
 
   }
@@ -230,9 +230,9 @@ export default function Page() {
             <button
               onClick={() => {
 
-                if (viewMode === "MIN") setViewMode("MAX")
-                else if (viewMode === "MAX") setViewMode("MID")
-                else {
+                if (viewMode === "MIN") {
+                  setViewMode("MAX")
+                } else {
                   setViewMode("MIN")
                   setOpenPair(null)
                 }
@@ -241,21 +241,17 @@ export default function Page() {
               className={`
                 pointer-events-auto
                 w-12 h-6 rounded-full transition-all duration-300 relative
-                ${viewMode === "MIN"
+${viewMode === "MIN"
                   ? "bg-neutral-700"
-                  : viewMode === "MID"
-                    ? "bg-neutral-600"
-                    : "bg-neutral-500"}
+                  : "bg-neutral-500"}
               `}
             >
               <div
                 className={`
                   absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white transition-all duration-300
-                  ${viewMode === "MID"
+${viewMode === "MIN"
                     ? "left-1"
-                    : viewMode === "MIN"
-                      ? "left-1/2 -translate-x-1/2"
-                      : "right-1"}
+                    : "right-1"}
                 `}
               />
             </button>

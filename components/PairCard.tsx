@@ -6,7 +6,7 @@ import React, { useState, useEffect } from "react"
 import GlobalLightChart from "./GlobalLightChart"
 
 type TradeDirection = "BUY" | "SELL" | "HEDGED" | "EXIT" | "--"
-type ViewMode = "MIN" | "MID" | "MAX"
+type ViewMode = "MIN" | "MAX"
 
 type Props = {
   pair: string
@@ -24,7 +24,6 @@ type Props = {
 function PairCard({
   pair,
   open,
-  viewMode = "MID",
   onToggle,
   direction,
   signal,
@@ -42,7 +41,7 @@ function PairCard({
 
   const isMin = viewMode === "MIN"
   const isMax = viewMode === "MAX"
-  const expanded = isMax ? true : open
+  const expanded = viewMode === "MAX" && open
 
   useEffect(() => setLiveDir(dir), [dir])
   useEffect(() => setLiveOrders(orders ?? []), [orders])
@@ -68,7 +67,7 @@ function PairCard({
         `}
         onClick={(e) => {
           e.stopPropagation()
-          if (!isMax) onToggle()
+          onToggle()
         }}
       >
 
@@ -160,7 +159,7 @@ function PairCard({
       </div>
 
       {/* ================= EXPANDED CONTENT ================= */}
-      {!isMin && expanded && (
+      {viewMode === "MAX" && expanded && (
         <div className="border-t border-neutral-800">
 
           {/* TABS */}
