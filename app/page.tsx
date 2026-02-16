@@ -235,7 +235,7 @@ export default function Page() {
       ====================================================== */}
       <div className="fixed bottom-0 left-0 right-0 z-50">
 
-        <div className="bg-neutral-900 border-t border-neutral-800 h-16 flex items-center justify-between px-4 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+        <div className="bg-neutral-900 border-t border-neutral-800 h-12 flex items-center justify-between px-4 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
 
           <div className="flex gap-3">
 
