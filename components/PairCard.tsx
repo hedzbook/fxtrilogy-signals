@@ -48,66 +48,43 @@ function PairCard({
   useEffect(() => setLiveOrders(orders ?? []), [orders])
   useEffect(() => { if (expanded) setTab("market") }, [expanded])
 
-  // EXIT auto sync
-  useEffect(() => {
-    if (!signal) return
-    if (dir === "HEDGED") return
-
-    const price = Number(signal?.price)
-    const tp = Number(signal?.tp)
-    const sl = Number(signal?.sl)
-
-    if (!price || !tp || !sl) return
-
-    if (liveDir === "BUY") {
-      if (price >= tp || price <= sl) setLiveDir("EXIT")
-    }
-
-    if (liveDir === "SELL") {
-      if (price <= tp || price >= sl) setLiveDir("EXIT")
-    }
-
-  }, [signal?.price, dir, liveDir])
-
-  useEffect(() => {
-    if (liveDir === "EXIT") setLiveOrders([])
-  }, [liveDir])
-
   return (
     <div
-      className={`border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300
-      ${liveDir === "EXIT"
-          ? "bg-gradient-to-b from-neutral-900 to-neutral-950 opacity-100 border-neutral-800/60"
+      className={`
+        border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300
+        ${isMin ? "h-full flex flex-col justify-center" : ""}
+        ${liveDir === "EXIT"
+          ? "bg-gradient-to-b from-neutral-900 to-neutral-950 border-neutral-800/60"
           : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"
-        }`}
+        }
+      `}
     >
 
       {/* ================= HEADER ================= */}
       <div
-  className={`${isMin ? "p-2" : "p-4"} cursor-pointer`}
-  onClick={(e) => {
+        className={`
+          ${isMin ? "flex-1 flex items-center px-4" : "p-4"}
+          cursor-pointer
+        `}
+        onClick={(e) => {
           e.stopPropagation()
-
-          if (!isMax) {
-            onToggle()
-          }
-
+          if (!isMax) onToggle()
         }}
       >
 
-        {/* ================= MIN MODE (FINAL — UNTOUCHED) ================= */}
+        {/* ================= MIN MODE ================= */}
         {isMin && signal ? (
-          <div className="flex items-center justify-between">
+          <div className="flex w-full items-center justify-between">
 
-            <div className="flex flex-col">
-              <div className="font-semibold text-sm">{pair}</div>
-              <div className="text-neutral-400 text-[11px]">
+            <div className="flex flex-col justify-center">
+              <div className="font-semibold text-base">{pair}</div>
+              <div className="text-neutral-400 text-xs">
                 {signal?.lots ?? "-"} LOTS
               </div>
             </div>
 
             <div className="flex-1 flex justify-center px-4">
-              <div className="w-full max-w-[320px]">
+              <div className="w-full max-w-[340px]">
                 <InlineTradeStrip
                   signal={signal}
                   direction={liveDir}
@@ -115,19 +92,20 @@ function PairCard({
               </div>
             </div>
 
-            <div className="flex flex-col items-end">
-              <div className={`font-bold text-sm ${liveDir === "BUY"
+            <div className="flex flex-col items-end justify-center">
+              <div className={`font-bold text-base ${
+                liveDir === "BUY"
                   ? "text-green-400"
                   : liveDir === "SELL"
                     ? "text-red-400"
                     : liveDir === "HEDGED"
                       ? "text-sky-400"
                       : "text-neutral-500"
-                }`}>
+              }`}>
                 {liveDir}
               </div>
 
-              <div className="text-[11px] font-semibold">
+              <div className="text-xs font-semibold">
                 <span className="text-green-400">{signal?.buys ?? 0}B</span>
                 <span className="text-neutral-500 px-1">/</span>
                 <span className="text-red-400">{signal?.sells ?? 0}S</span>
@@ -144,14 +122,15 @@ function PairCard({
             <div className="flex justify-between items-center">
               <div className="font-semibold">{pair}</div>
 
-              <div className={`font-bold ${liveDir === "BUY"
+              <div className={`font-bold ${
+                liveDir === "BUY"
                   ? "text-green-400"
                   : liveDir === "SELL"
                     ? "text-red-400"
                     : liveDir === "HEDGED"
                       ? "text-sky-400"
                       : "text-neutral-500"
-                }`}>
+              }`}>
                 {liveDir}
               </div>
             </div>
