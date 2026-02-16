@@ -51,6 +51,7 @@ export default function Page() {
       document.body.style.touchAction = "pan-y"
 
       setAuthorized(true)
+
     } else {
       setAuthorized(false)
     }
@@ -179,7 +180,7 @@ export default function Page() {
   // ======================================================
   return (
     <main
-      className="min-h-screen text-white p-4 pb-24 space-y-3 transition-all duration-500"
+      className="min-h-screen text-white pb-24 transition-all duration-500"
       style={{
         background:
           netState === "NET BUY"
@@ -190,37 +191,47 @@ export default function Page() {
       }}
     >
 
-      <AccountStrip
-        pairs={pairsData}
-        onStateChange={(state: string) => {
-          setNetState(state)
-        }}
-      />
+      {/* ======================================================
+          🔥 STICKY TOP ACCOUNT STRIP
+      ====================================================== */}
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <AccountStrip
+          pairs={pairsData}
+          onStateChange={(state: string) => {
+            setNetState(state)
+          }}
+        />
+      </div>
 
-      {PAIRS.map((pair) => {
+      {/* CONTENT WRAPPER WITH TOP OFFSET */}
+      <div className="pt-20 px-4 space-y-3">
 
-        const signal = uiSignals?.[pair]
-        const extra = pairData?.[pair] || {}
+        {PAIRS.map((pair) => {
 
-        return (
-          <PairCard
-            key={pair}
-            pair={pair}
-            open={viewMode === "MAX" ? true : openPair === pair}
-            direction={signal?.direction}
-            signal={signal}
-            history={extra?.history}
-            orders={extra?.orders}
-            performance={extra?.performance}
-            notes={extra?.notes}
-            viewMode={viewMode}
-            onToggle={() => togglePair(pair)}
-          />
-        )
-      })}
+          const signal = uiSignals?.[pair]
+          const extra = pairData?.[pair] || {}
+
+          return (
+            <PairCard
+              key={pair}
+              pair={pair}
+              open={viewMode === "MAX" ? true : openPair === pair}
+              direction={signal?.direction}
+              signal={signal}
+              history={extra?.history}
+              orders={extra?.orders}
+              performance={extra?.performance}
+              notes={extra?.notes}
+              viewMode={viewMode}
+              onToggle={() => togglePair(pair)}
+            />
+          )
+        })}
+
+      </div>
 
       {/* ======================================================
-          STICKY CONTROL BAR
+          🔥 STICKY BOTTOM CONTROL BAR
       ====================================================== */}
       <div className="fixed bottom-0 left-0 right-0 z-50">
 
