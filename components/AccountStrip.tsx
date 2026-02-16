@@ -17,20 +17,26 @@ export default function AccountStrip({
     let buyVol = 0
     let sellVol = 0
 
-    pairs.forEach(p => {
+pairs.forEach(p => {
 
-        const buys = Number(p.signal?.buys || 0)
-        const sells = Number(p.signal?.sells || 0)
-        const lots = Number(p.signal?.lots || 0)
+    const positions = p.signal?.positions || []
 
-        buyVol += buys
-        sellVol += sells
-        totalLots += lots
+    positions.forEach((pos: any) => {
 
-        // FLOATING should come from MT5 later.
-        // For now keep zero or existing logic.
+        const lot = Number(pos.lot || 0)
+        const pnl = Number(pos.pnl || 0)
 
+        totalLots += lot
+        totalFloating += pnl
+
+        if (pos.direction === "BUY")
+            buyVol += 1
+
+        if (pos.direction === "SELL")
+            sellVol += 1
     })
+
+})
 
     const netState =
         buyVol === 0 && sellVol === 0
