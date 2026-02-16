@@ -159,25 +159,24 @@ export default function Page() {
   }
 
   return (
-    <main className="min-h-screen text-white bg-black">
+    <main className="h-screen text-white bg-black overflow-hidden">
 
       {/* TOP STRIP */}
       <div className="fixed top-0 left-0 right-0 z-50 h-10">
         <AccountStrip
           pairs={pairsData}
-          onStateChange={(state: string) => {
-            setNetState(state)
-          }}
+          onStateChange={(state: string) => setNetState(state)}
         />
       </div>
 
-      {/* CONTENT */}
+      {/* CONTENT AREA */}
       <div
         className={`
-          pt-16 px-4
+          absolute top-10 bottom-10 left-0 right-0
+          px-4 pt-4
           ${viewMode === "MIN"
-            ? "flex flex-col gap-2 h-[calc(100vh-80px)] overflow-hidden"
-            : "space-y-3 pb-16"
+            ? "flex flex-col gap-2"
+            : "overflow-y-auto space-y-3 pb-4"
           }
         `}
       >
@@ -226,17 +225,14 @@ export default function Page() {
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-
             <button
               onClick={() => {
-
                 if (viewMode === "MIN") setViewMode("MAX")
                 else if (viewMode === "MAX") setViewMode("MID")
                 else {
                   setViewMode("MIN")
                   setOpenPair(null)
                 }
-
               }}
               className={`
                 pointer-events-auto
@@ -259,7 +255,6 @@ export default function Page() {
                 `}
               />
             </button>
-
           </div>
 
           <div className="ml-auto text-right z-10 flex flex-col items-end">
