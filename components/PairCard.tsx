@@ -164,12 +164,24 @@ function InlineTradeStrip({
   return (
     <div className="flex flex-col items-center">
 
-      {/* LABELS */}
-      <div className="w-full flex justify-between text-[8px] text-neutral-400 mb-1">
-        <span>SL/HEDZ</span>
-        <span>ENTRY</span>
-        <span>TP</span>
-      </div>
+{/* LABELS — perfectly aligned to anchors */}
+<div className="relative w-full h-[10px] text-[8px] text-neutral-400 mb-1">
+
+  <span className="absolute left-0">
+    SL/HEDZ
+  </span>
+
+  <span
+    className="absolute left-1/2 -translate-x-1/2"
+  >
+    ENTRY
+  </span>
+
+  <span className="absolute right-0">
+    TP
+  </span>
+
+</div>
 
       {/* BAR CONTAINER */}
       <div className="relative w-full h-[2px]">
