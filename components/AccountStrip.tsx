@@ -1,5 +1,3 @@
-// components/AccountStrip.tsx
-
 "use client"
 
 import { useEffect } from "react"
@@ -17,22 +15,21 @@ export default function AccountStrip({
     let buyVol = 0
     let sellVol = 0
 
-pairs.forEach(p => {
+    pairs.forEach(p => {
 
-    const orders = p.signal?.orders || [];
+        const orders = p.signal?.orders || []
 
-orders.forEach((pos: any) => {
-    const lot = Number(pos.lots || 0);
-    const pnl = Number(pos.profit || 0);
+        orders.forEach((pos: any) => {
+            const lot = Number(pos.lots || 0)
+            const pnl = Number(pos.profit || 0)
 
-    totalLots += lot;
-    totalFloating += pnl;
+            totalLots += lot
+            totalFloating += pnl
 
-    if (pos.direction === "BUY") buyVol += lot;
-    if (pos.direction === "SELL") sellVol += lot;
-});
-
-});
+            if (pos.direction === "BUY") buyVol += lot
+            if (pos.direction === "SELL") sellVol += lot
+        })
+    })
 
     const netState =
         buyVol === 0 && sellVol === 0
@@ -43,39 +40,44 @@ orders.forEach((pos: any) => {
                     ? "NET BUY"
                     : "NET SELL"
 
-    // exposure intensity 0 → 1
     const imbalance = Math.abs(buyVol - sellVol)
     const totalVol = buyVol + sellVol || 1
     const intensity = Math.min(1, imbalance / totalVol)
     const pulse = Math.min(1, Math.abs(totalFloating) / (totalLots || 1))
 
     useEffect(() => {
-
         if (typeof onStateChange === "function") {
             onStateChange(netState, intensity, pulse)
         }
-
     }, [netState, intensity, pulse])
 
     return (
-        <div className="bg-gradient-to-b from-neutral-900 to-neutral-950 border-b border-neutral-800 p-3 flex justify-between text-sm shadow-[0_10px_24px_rgba(0,0,0,0.6)] backdrop-blur">
+        <div className="bg-gradient-to-b from-neutral-900 to-neutral-950 border-b border-neutral-800 shadow-[0_6px_20px_rgba(0,0,0,0.6)] backdrop-blur h-14 flex items-center">
 
-            <div className="space-x-4">
-                <span className="text-neutral-400">LOTS</span>
-                <span className="font-semibold">{totalLots.toFixed(2)}</span>
+            {/* INNER WRAPPER — aligns with PairCard px-4 */}
+            <div className="px-4 w-full flex justify-between items-center text-sm">
+
+                {/* LEFT */}
+                <div className="flex items-center gap-4">
+                    <div>
+                        <span className="text-neutral-400 mr-2">LOTS</span>
+                        <span className="font-semibold">{totalLots.toFixed(2)}</span>
+                    </div>
+
+                    <div>
+                        <span className="text-neutral-400 mr-2">~PnL</span>
+                        <span className={totalFloating >= 0 ? "text-green-400 font-semibold" : "text-red-400 font-semibold"}>
+                            {totalFloating.toFixed(2)}
+                        </span>
+                    </div>
+                </div>
+
+                {/* RIGHT */}
+                <div className="font-semibold text-sky-400 tracking-wide">
+                    {netState}
+                </div>
+
             </div>
-
-            <div className="space-x-4">
-                <span className="text-neutral-400">FLOATING</span>
-                <span className={totalFloating >= 0 ? "text-green-400" : "text-red-400"}>
-                    {totalFloating.toFixed(2)}
-                </span>
-            </div>
-
-            <div className="font-semibold text-sky-400">
-                {netState}
-            </div>
-
         </div>
     )
 }
