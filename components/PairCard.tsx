@@ -394,6 +394,7 @@ function InlineTradeStrip({ signal, direction }: any) {
 
   if (!sl || !tp) return null
 
+  const entryPercent = 50
   let pricePercent = 50
 
   if (direction === "BUY") {
@@ -424,17 +425,18 @@ function InlineTradeStrip({ signal, direction }: any) {
   return (
     <div className="flex flex-col items-center">
 
-      <div className="relative w-full text-[clamp(9px,1.3vw,16px)] text-neutral-400 mb-1">
+      <div className="relative w-full h-[10px] text-[clamp(8px,1.2vw,14px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL/HEDZ</span>
         <span className="absolute left-1/2 -translate-x-1/2">ENTRY</span>
         <span className="absolute right-0">TP</span>
       </div>
 
-      <div className="relative w-full h-[clamp(3px,0.6vw,6px)]">
+      <div className="relative w-full h-[2px]">
 
         <div className="absolute inset-0 bg-neutral-800 rounded-full" />
-        <div className="absolute left-0 h-full w-1/2 bg-red-500/70" />
-        <div className="absolute right-0 h-full w-1/2 bg-green-500/70" />
+
+        <div className="absolute left-0 h-[2px] w-1/2 bg-red-500/70" />
+        <div className="absolute right-0 h-[2px] w-1/2 bg-green-500/70" />
 
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1vw,14px)] h-[clamp(6px,1vw,14px)] rounded-full border border-neutral-500 bg-black" />
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[clamp(6px,1vw,14px)] h-[clamp(6px,1vw,14px)] rounded-full border border-neutral-500 bg-black" />
@@ -448,17 +450,15 @@ function InlineTradeStrip({ signal, direction }: any) {
             transition: "left 300ms ease"
           }}
         >
-          <div className={`absolute -inset-2 rounded-full blur-md ${
-            isTPside ? "bg-green-500/30" : "bg-red-500/30"
-          }`} />
-          <div className={`w-[clamp(6px,1vw,14px)] h-[clamp(6px,1vw,14px)] rounded-full ${
-            isTPside ? "bg-green-400" : "bg-red-400"
-          }`} />
+          <div className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
+            }`} />
+          <div className={`w-[clamp(6px,1vw,14px)] h-[clamp(6px,1vw,14px)] rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
+            }`} />
         </div>
 
       </div>
 
-      <div className="w-full flex justify-between text-[clamp(9px,1.3vw,16px)] text-neutral-400 mt-1">
+      <div className="w-full flex justify-between text-[clamp(8px,1.2vw,14px)] text-neutral-400 mt-1">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
@@ -488,13 +488,16 @@ function TradeBar({
   if (direction === "EXIT") return null
   if (!sl || !tp || !entry) return null
 
+  const entryPercent = 50
   let pricePercent = 50
 
   if (direction === "BUY") {
     const leftRange = Math.abs(entry - sl)
     const rightRange = Math.abs(tp - entry)
+
     if (price < entry && leftRange > 0)
       pricePercent = 50 - ((entry - price) / leftRange) * 50
+
     if (price > entry && rightRange > 0)
       pricePercent = 50 + ((price - entry) / rightRange) * 50
   }
@@ -502,8 +505,10 @@ function TradeBar({
   if (direction === "SELL") {
     const leftRange = Math.abs(tp - entry)
     const rightRange = Math.abs(entry - sl)
+
     if (price > entry && rightRange > 0)
       pricePercent = 50 - ((price - entry) / rightRange) * 50
+
     if (price < entry && leftRange > 0)
       pricePercent = 50 + ((entry - price) / leftRange) * 50
   }
@@ -518,40 +523,72 @@ function TradeBar({
   return (
     <div className="mt-3 select-none">
 
-      <div className="relative text-[clamp(10px,1.4vw,18px)] text-neutral-400 mb-2">
+      <div className="relative h-3 text-[clamp(10px,1.4vw,16px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL / HEDZ</span>
-        <span className="absolute left-1/2 -translate-x-1/2">ENTRY</span>
+        <span
+          className="absolute"
+          style={{
+            left: `${entryPercent}%`,
+            transform: "translateX(-50%)"
+          }}
+        >
+          ENTRY
+        </span>
         <span className="absolute right-0">TP</span>
       </div>
 
-      <div className="relative h-[clamp(4px,0.8vw,8px)]">
-
-        <div className="absolute left-0 h-full w-1/2 bg-red-500/70" />
-        <div className="absolute right-0 h-full w-1/2 bg-green-500/70" />
-
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full border border-neutral-400" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full border border-neutral-400" />
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full border border-neutral-400" />
+      <div className="relative h-6 flex items-center overflow-visible">
 
         <div
-          className="absolute top-1/2"
+          className="absolute h-[2px]"
+          style={{
+            width: `${entryPercent}%`,
+            background:
+              "linear-gradient(90deg, rgba(248,113,113,0.8), rgba(239,68,68,0.05))"
+          }}
+        />
+
+        <div
+          className="absolute h-[2px]"
+          style={{
+            left: `${entryPercent}%`,
+            width: `${100 - entryPercent}%`,
+            background:
+              "linear-gradient(90deg, rgba(34,197,94,0.05), rgba(74,222,128,0.8))"
+          }}
+        />
+
+        <div className="absolute left-0 w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full border border-neutral-400" />
+        <div
+          className="absolute w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full border border-neutral-400"
+          style={{
+            left: `${entryPercent}%`,
+            transform: "translateX(-50%)"
+          }}
+        />
+        <div className="absolute right-0 w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full border border-neutral-400" />
+
+        <div
+          className="absolute"
           style={{
             left: `${pricePercent}%`,
-            transform: "translate(-50%, -50%)",
+            transform: "translateX(-50%)",
             transition: "left 380ms cubic-bezier(0.22,1,0.36,1)"
           }}
         >
-          <div className={`absolute -inset-2 rounded-full blur-md ${
-            isTPside ? "bg-green-500/30" : "bg-red-500/30"
-          }`} />
-          <div className={`w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full ${
-            isTPside ? "bg-green-400" : "bg-red-400"
-          }`} />
+          <div
+            className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
+              }`}
+          />
+          <div
+            className={`w-[clamp(8px,1.2vw,18px)] h-[clamp(8px,1.2vw,18px)] rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
+              }`}
+          />
         </div>
 
       </div>
 
-      <div className="flex justify-between text-[clamp(10px,1.4vw,18px)] text-neutral-400 mt-2">
+      <div className="flex justify-between text-[clamp(11px,1.4vw,16px)] text-neutral-400 mt-1">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
