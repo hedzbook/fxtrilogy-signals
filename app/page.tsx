@@ -251,7 +251,7 @@ export default function Page() {
 {/* RIGHT SIDE */}
 <div className="ml-auto text-right z-10 flex flex-col items-end">
   
-  <div className="text-[9px] font-medium tracking-[0.5px] leading-[11px]">
+  <div className="text-[7px] font-medium tracking-[0.5px] leading-[11px]">
     ZEROLOSS COMPOUNDED
   </div>
 
