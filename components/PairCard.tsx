@@ -291,80 +291,65 @@ function InlineTradeStrip({
       : price <= entry
 
   return (
-    <div className="relative h-10">
+    <div className="relative w-[180px] mx-auto">
 
-      {/* LABELS */}
-      <div className="absolute top-[-12px] w-full text-[9px] text-neutral-400 flex justify-between">
+      {/* LABEL ROW */}
+      <div className="flex justify-between text-[9px] text-neutral-400 mb-[2px]">
         <span>SL/HEDZ</span>
         <span>ENTRY</span>
         <span>TP</span>
       </div>
 
       {/* BAR */}
-      <div className="absolute top-1/2 -translate-y-1/2 w-full h-[2px] bg-neutral-800 rounded-full" />
+      <div className="relative h-[2px]">
 
-      {/* LEFT RED */}
-      <div
-        className="absolute h-[2px]"
-        style={{
-          width: "50%",
-          background:
-            "linear-gradient(90deg, rgba(248,113,113,0.8), rgba(239,68,68,0.05))"
-        }}
-      />
-
-      {/* RIGHT GREEN */}
-      <div
-        className="absolute h-[2px]"
-        style={{
-          left: "50%",
-          width: "50%",
-          background:
-            "linear-gradient(90deg, rgba(34,197,94,0.05), rgba(74,222,128,0.8))"
-        }}
-      />
-
-      {/* PRICE DOT */}
-      <div
-        className="absolute"
-        style={{
-          left: `${pricePercent}%`,
-          transform: "translateX(-50%)",
-          transition: "left 350ms cubic-bezier(0.22,1,0.36,1)"
-        }}
-      >
+        {/* RED SIDE */}
         <div
-          className={`absolute -inset-2 rounded-full blur-md ${
-            isTPside ? "bg-green-500/30" : "bg-red-500/30"
-          }`}
-        />
-        <div
-          className={`w-2.5 h-2.5 rounded-full ${
-            isTPside ? "bg-green-400" : "bg-red-400"
-          }`}
+          className="absolute left-0 h-[2px] w-1/2"
           style={{
-            boxShadow: isTPside
-              ? "0 0 12px rgba(74,222,128,0.9)"
-              : "0 0 12px rgba(248,113,113,0.9)",
-            animation: "instPulse 1.6s ease-in-out infinite"
+            background:
+              "linear-gradient(90deg, rgba(248,113,113,0.9), rgba(239,68,68,0.1))"
           }}
         />
+
+        {/* GREEN SIDE */}
+        <div
+          className="absolute right-0 h-[2px] w-1/2"
+          style={{
+            background:
+              "linear-gradient(90deg, rgba(34,197,94,0.1), rgba(74,222,128,0.9))"
+          }}
+        />
+
+        {/* PRICE DOT */}
+        <div
+          className="absolute"
+          style={{
+            left: `${pricePercent}%`,
+            transform: "translateX(-50%)",
+            transition: "left 320ms cubic-bezier(0.22,1,0.36,1)"
+          }}
+        >
+          <div
+            className={`w-2 h-2 rounded-full ${
+              isTPside ? "bg-green-400" : "bg-red-400"
+            }`}
+            style={{
+              boxShadow: isTPside
+                ? "0 0 10px rgba(74,222,128,0.8)"
+                : "0 0 10px rgba(248,113,113,0.8)"
+            }}
+          />
+        </div>
+
       </div>
 
-      {/* PRICES */}
-      <div className="absolute bottom-[-12px] w-full text-[9px] text-neutral-400 flex justify-between">
+      {/* PRICE ROW */}
+      <div className="flex justify-between text-[9px] text-neutral-400 mt-[2px]">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
       </div>
-
-      <style jsx>{`
-        @keyframes instPulse {
-          0% { transform: scale(0.85); opacity:.7 }
-          50% { transform: scale(1.2); opacity:1 }
-          100% { transform: scale(0.85); opacity:.7 }
-        }
-      `}</style>
 
     </div>
   )
