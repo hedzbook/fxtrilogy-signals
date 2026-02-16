@@ -203,7 +203,7 @@ export default function Page() {
             <img
               src="/logo.png"
               alt="Logo"
-              className="h-[26px] w-auto object-contain"
+              className="h-6 w-auto"
             />
 
             {/* TEXT BLOCK */}
