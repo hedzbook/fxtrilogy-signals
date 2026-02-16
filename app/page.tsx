@@ -195,25 +195,23 @@ export default function Page() {
 
   <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-[17px] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
 
-    {/* ================= LEFT SIDE ================= */}
+    {/* LEFT SIDE */}
     <div className="flex items-center gap-2 z-10">
 
-      {/* Slim Hamburger */}
-      <div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
-        <div className="h-[2px] w-4 bg-neutral-400" />
-        <div className="h-[2px] w-4 bg-neutral-400" />
-        <div className="h-[2px] w-4 bg-neutral-400" />
+      <div className="w-3 h-5 flex flex-col justify-center gap-[3px] cursor-pointer">
+        <div className="h-[2px] w-3 bg-neutral-400" />
+        <div className="h-[2px] w-3 bg-neutral-400" />
+        <div className="h-[2px] w-3 bg-neutral-400" />
       </div>
 
-      {/* Brand */}
-      <div className="text-[14px] font-semibold tracking-wide leading-none">
+      <div className="text-[15px] font-semibold tracking-wide leading-none">
         FXHEDZ
       </div>
 
     </div>
 
-    {/* ================= CENTER TOGGLE ================= */}
-    <div className="absolute left-1/2 -translate-x-1/2">
+    {/* CENTER TOGGLE */}
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
 
       <button
         onClick={() => {
@@ -227,6 +225,7 @@ export default function Page() {
           }
         }}
         className={`
+          pointer-events-auto
           w-12 h-6 rounded-full transition-all duration-300 relative
           ${viewMode === "MIN"
             ? "bg-neutral-700"
@@ -249,14 +248,14 @@ export default function Page() {
 
     </div>
 
-    {/* ================= RIGHT SIDE ================= */}
-    <div className="ml-auto text-right leading-tight text-[7px] z-10">
+    {/* RIGHT SIDE */}
+    <div className="ml-auto text-right leading-[10px] text-[9px] z-10">
 
-      <div className="tracking-wide">
+      <div className="font-medium">
         ZEROLOSS COMPOUNDED
       </div>
 
-      <div className="tracking-wide text-neutral-400">
+      <div className="text-neutral-500">
         HEDGING SYSTEM
       </div>
 
