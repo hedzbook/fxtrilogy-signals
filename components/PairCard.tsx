@@ -291,33 +291,36 @@ function InlineTradeStrip({
       : price <= entry
 
   return (
-    <div className="relative w-[180px] mx-auto">
+    <div className="relative h-7 flex flex-col justify-center">
 
-      {/* LABEL ROW */}
-      <div className="flex justify-between text-[9px] text-neutral-400 mb-[2px]">
+      {/* LABELS (tightened + raised) */}
+      <div className="absolute top-[-8px] w-full text-[8px] text-neutral-400 flex justify-between">
         <span>SL/HEDZ</span>
         <span>ENTRY</span>
         <span>TP</span>
       </div>
 
       {/* BAR */}
-      <div className="relative h-[2px]">
+      <div className="relative w-full h-[2px]">
 
-        {/* RED SIDE */}
+        {/* LEFT RED */}
         <div
-          className="absolute left-0 h-[2px] w-1/2"
+          className="absolute h-[2px]"
           style={{
+            width: "50%",
             background:
-              "linear-gradient(90deg, rgba(248,113,113,0.9), rgba(239,68,68,0.1))"
+              "linear-gradient(90deg, rgba(248,113,113,0.8), rgba(239,68,68,0.05))"
           }}
         />
 
-        {/* GREEN SIDE */}
+        {/* RIGHT GREEN */}
         <div
-          className="absolute right-0 h-[2px] w-1/2"
+          className="absolute h-[2px]"
           style={{
+            left: "50%",
+            width: "50%",
             background:
-              "linear-gradient(90deg, rgba(34,197,94,0.1), rgba(74,222,128,0.9))"
+              "linear-gradient(90deg, rgba(34,197,94,0.05), rgba(74,222,128,0.8))"
           }}
         />
 
@@ -326,30 +329,44 @@ function InlineTradeStrip({
           className="absolute"
           style={{
             left: `${pricePercent}%`,
-            transform: "translateX(-50%)",
-            transition: "left 320ms cubic-bezier(0.22,1,0.36,1)"
+            transform: "translate(-50%, -40%)",
+            transition: "left 350ms cubic-bezier(0.22,1,0.36,1)"
           }}
         >
           <div
-            className={`w-2 h-2 rounded-full ${
+            className={`absolute -inset-2 rounded-full blur-md ${
+              isTPside ? "bg-green-500/30" : "bg-red-500/30"
+            }`}
+          />
+          <div
+            className={`w-2.5 h-2.5 rounded-full ${
               isTPside ? "bg-green-400" : "bg-red-400"
             }`}
             style={{
               boxShadow: isTPside
-                ? "0 0 10px rgba(74,222,128,0.8)"
-                : "0 0 10px rgba(248,113,113,0.8)"
+                ? "0 0 10px rgba(74,222,128,0.9)"
+                : "0 0 10px rgba(248,113,113,0.9)",
+              animation: "instPulse 1.6s ease-in-out infinite"
             }}
           />
         </div>
 
       </div>
 
-      {/* PRICE ROW */}
-      <div className="flex justify-between text-[9px] text-neutral-400 mt-[2px]">
+      {/* PRICES (raised closer) */}
+      <div className="absolute bottom-[-8px] w-full text-[8px] text-neutral-400 flex justify-between">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
       </div>
+
+      <style jsx>{`
+        @keyframes instPulse {
+          0% { transform: scale(0.85); opacity:.7 }
+          50% { transform: scale(1.2); opacity:1 }
+          100% { transform: scale(0.85); opacity:.7 }
+        }
+      `}</style>
 
     </div>
   )
