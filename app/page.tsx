@@ -173,15 +173,7 @@ function togglePair(pair: string) {
         />
       </div>
 
-      <div
-  className={`
-    pt-16 px-4
-    ${viewMode === "MIN"
-      ? "flex flex-col h-[calc(100vh-6rem)] gap-2"
-      : "space-y-3"
-    }
-  `}
->
+      <div className="pt-16 px-4 space-y-3">
 
         {PAIRS.map((pair) => {
 
