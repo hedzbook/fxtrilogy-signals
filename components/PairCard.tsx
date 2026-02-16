@@ -1,5 +1,3 @@
-// components/PairCard.tsx
-
 "use client"
 
 import React, { useState, useEffect } from "react"
@@ -48,7 +46,6 @@ function PairCard({
   useEffect(() => setLiveOrders(orders ?? []), [orders])
   useEffect(() => { if (expanded) setTab("market") }, [expanded])
 
-  // EXIT auto sync
   useEffect(() => {
     if (!signal) return
     if (dir === "HEDGED") return
@@ -73,64 +70,56 @@ function PairCard({
     if (liveDir === "EXIT") setLiveOrders([])
   }, [liveDir])
 
-return (
-  <div
-    className={`
-      border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300
-      ${isMin ? "h-full flex flex-col justify-center" : ""}
-      ${liveDir === "EXIT"
-        ? "bg-gradient-to-b from-neutral-900 to-neutral-950 opacity-100 border-neutral-800/60"
-        : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"
-      }
-    `}
-  >
+  return (
+    <div
+      className={`
+        border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300
+        ${isMin ? "h-full flex flex-col justify-center" : ""}
+        ${liveDir === "EXIT"
+          ? "bg-gradient-to-b from-neutral-900 to-neutral-950 opacity-100 border-neutral-800/60"
+          : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"
+        }
+      `}
+    >
 
-      {/* ================= HEADER ================= */}
       <div
         className={`${isMin ? "p-2" : "p-4"} cursor-pointer`}
         onClick={(e) => {
           e.stopPropagation()
-
-          if (!isMax) {
-            onToggle()
-          }
-
+          if (!isMax) onToggle()
         }}
       >
 
-        {/* ================= MIN MODE (FINAL — UNTOUCHED) ================= */}
         {isMin && signal ? (
           <div className="flex items-center justify-between">
 
             <div className="flex flex-col">
               <div className="font-semibold text-sm">{pair}</div>
-              <div className="text-neutral-400 text-[11px]">
+              <div className="text-neutral-400 text-xs">
                 {signal?.lots ?? "-"} LOTS
               </div>
             </div>
 
             <div className="flex-1 flex justify-center px-4">
               <div className="w-full max-w-[320px]">
-                <InlineTradeStrip
-                  signal={signal}
-                  direction={liveDir}
-                />
+                <InlineTradeStrip signal={signal} direction={liveDir} />
               </div>
             </div>
 
             <div className="flex flex-col items-end">
-              <div className={`font-bold text-sm ${liveDir === "BUY"
-                ? "text-green-400"
-                : liveDir === "SELL"
-                  ? "text-red-400"
-                  : liveDir === "HEDGED"
-                    ? "text-sky-400"
-                    : "text-neutral-500"
-                }`}>
+              <div className={`font-bold text-sm ${
+                liveDir === "BUY"
+                  ? "text-green-400"
+                  : liveDir === "SELL"
+                    ? "text-red-400"
+                    : liveDir === "HEDGED"
+                      ? "text-sky-400"
+                      : "text-neutral-500"
+              }`}>
                 {liveDir}
               </div>
 
-              <div className="text-[11px] font-semibold">
+              <div className="text-xs font-semibold">
                 <span className="text-green-400">{signal?.buys ?? 0}B</span>
                 <span className="text-neutral-500 px-1">/</span>
                 <span className="text-red-400">{signal?.sells ?? 0}S</span>
@@ -139,32 +128,27 @@ return (
 
           </div>
         ) : (
-
-          /* ================= MID / MAX HEADER ================= */
-
           <div className="w-full">
-
             <div className="flex justify-between items-center">
               <div className="font-semibold">{pair}</div>
-
-              <div className={`font-bold ${liveDir === "BUY"
-                ? "text-green-400"
-                : liveDir === "SELL"
-                  ? "text-red-400"
-                  : liveDir === "HEDGED"
-                    ? "text-sky-400"
-                    : "text-neutral-500"
-                }`}>
+              <div className={`font-bold ${
+                liveDir === "BUY"
+                  ? "text-green-400"
+                  : liveDir === "SELL"
+                    ? "text-red-400"
+                    : liveDir === "HEDGED"
+                      ? "text-sky-400"
+                      : "text-neutral-500"
+              }`}>
                 {liveDir}
               </div>
             </div>
 
             {signal && (
-              <div className="flex justify-between items-center text-[11px] mt-1">
+              <div className="flex justify-between items-center text-xs mt-1">
                 <div className="text-neutral-400 font-semibold tracking-widest">
                   {(signal?.lots ?? "--")} LOTS
                 </div>
-
                 <div className="font-semibold tracking-wide">
                   <span className="text-green-400">{signal?.buys ?? 0}B</span>
                   <span className="text-neutral-500 px-1">/</span>
@@ -177,214 +161,18 @@ return (
               (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
                 <TradeBar signal={signal} direction={liveDir} />
               )}
-
           </div>
         )}
 
       </div>
-
-      {/* ================= EXPANDED CONTENT ================= */}
-      {!isMin && expanded && (
-        <div className="border-t border-neutral-800">
-
-          {/* TABS */}
-          <div className="flex w-full border-b border-neutral-800 text-sm">
-            <TabBtn label="Market" active={tab === "market"} onClick={() => setTab("market")} />
-            <TabBtn label="News" active={tab === "news"} onClick={() => setTab("news")} />
-            <TabBtn label="History" active={tab === "history"} onClick={() => setTab("history")} />
-            <TabBtn label="Performance" active={tab === "performance"} onClick={() => setTab("performance")} />
-          </div>
-
-          <div className="h-[70dvh] overflow-y-auto overscroll-contain p-4 space-y-4">
-
-            {/* ================= MARKET ================= */}
-            {tab === "market" && (
-              <>
-                <div
-                  id={`chart_mount_${pair}`}
-                  className="w-full h-[280px] rounded-lg bg-neutral-900"
-                />
-                <GlobalLightChart
-                  mountId={`chart_mount_${pair}`}
-                  signal={signal}
-                />
-
-                <div>
-                  <div className="text-sm text-neutral-400">Latest Signal</div>
-                  <div className="font-bold text-lg">
-                    {signal?.direction || "--"} {signal?.entry || ""}
-                  </div>
-                  <div className="text-sm text-neutral-400">
-                    SL {signal?.sl || "--"} · TP {signal?.tp || "--"}
-                  </div>
-                </div>
-
-                <div className="bg-neutral-800 rounded-lg p-2 text-sm text-neutral-300">
-                  <div className="text-sm text-neutral-400 mb-2">Active Orders</div>
-
-                  <div className="max-h-[170px] overflow-y-auto space-y-1">
-                    {liveOrders?.length ? liveOrders.map((o, i) => {
-
-                      const key = o.id || `${o.direction}_${o.entry}_${o.time}`
-                      const pnl = Number(o.profit ?? 0)
-                      const prev = pnlCache[key] ?? pnl
-
-                      const pnlColor =
-                        pnl > 0
-                          ? "text-green-400"
-                          : pnl < 0
-                            ? "text-red-400"
-                            : "text-neutral-400"
-
-                      let pulseClass = ""
-                      if (pnl > prev) pulseClass = "ring-1 ring-green-400/40"
-                      if (pnl < prev) pulseClass = "ring-1 ring-red-400/40"
-
-                      return (
-                        <div
-                          key={key}
-                          className={`bg-neutral-900 p-2 rounded-md text-xs flex justify-between transition-all duration-300 ${pulseClass}`}
-                        >
-                          <div>
-                            <div className={`font-semibold ${o.direction === "BUY"
-                              ? "text-green-400"
-                              : "text-red-400"
-                              }`}>
-                              {o.direction}
-                            </div>
-                            <div className="text-neutral-400">
-                              ENTRY {o.entry}
-                            </div>
-                          </div>
-
-                          <div className="text-right">
-                            <div className="text-neutral-400">
-                              {o.lots}
-                            </div>
-                            <div className={pnlColor}>
-                              {pnl.toFixed(2)}
-                            </div>
-                          </div>
-                        </div>
-                      )
-
-                    }) : (
-                      <div className="text-neutral-500 text-sm">
-                        No open orders
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* ================= NEWS ================= */}
-            {tab === "news" && (
-              <div className="space-y-3">
-                <div className="text-sm text-neutral-400">
-                  Market Commentary
-                </div>
-                <div className="bg-neutral-800 rounded-lg p-4 text-sm text-neutral-300">
-                  {notes || "Coming Soon"}
-                </div>
-              </div>
-            )}
-
-            {/* ================= HISTORY ================= */}
-            {tab === "history" && (
-              <div className="space-y-2">
-                {history?.length ? history.map((h, i) => (
-                  <div key={i} className="bg-neutral-800 p-3 rounded-lg text-sm flex justify-between">
-                    <div>
-                      <div className={`font-semibold ${h.direction === "BUY" ? "text-green-400" : "text-red-400"
-                        }`}>
-                        {h.direction}
-                      </div>
-                      <div className="text-neutral-400 text-xs">
-                        {h.entry} → {h.exit}
-                      </div>
-                    </div>
-                    <div className={h.pnl >= 0 ? "text-green-400" : "text-red-400"}>
-                      {h.pnl}
-                    </div>
-                  </div>
-                )) : (
-                  <div className="text-neutral-500 text-sm">
-                    No history yet
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ================= PERFORMANCE ================= */}
-            {tab === "performance" && (
-              <div className="space-y-4">
-
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <Metric label="Win Rate"
-                    value={performance?.winRate !== undefined ? performance.winRate + "%" : "--"} />
-                  <Metric label="Profit Factor"
-                    value={performance?.profitFactor ?? "--"} />
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <Stat label="Total Trades" value={performance?.trades} />
-                  <Stat label="Wins" value={performance?.wins} />
-                  <Stat label="Losses" value={performance?.losses} />
-                  <Stat label="Total PnL" value={performance?.pnlTotal} />
-                </div>
-
-              </div>
-            )}
-
-          </div>
-        </div>
-      )}
-
     </div>
   )
 }
 
-/* ====================================================== */
-
-function TabBtn({ label, active, onClick }: any) {
-  return (
-    <button
-      onClick={(e) => { e.stopPropagation(); onClick() }}
-      className={`flex-1 py-3 text-center transition-all duration-200 ${active
-        ? "text-white border-b-2 border-white bg-neutral-900"
-        : "text-neutral-500 hover:text-neutral-300"
-        }`}
-    >
-      {label}
-    </button>
-  )
-}
-
-function Stat({ label, value }: any) {
-  return (
-    <div className="flex justify-between bg-neutral-800 rounded-lg p-3">
-      <span className="text-neutral-400">{label}</span>
-      <span className="font-semibold">{value ?? "--"}</span>
-    </div>
-  )
-}
-
-function Metric({ label, value }: any) {
-  return (
-    <div className="bg-neutral-800 rounded-lg p-4 text-center">
-      <div className="text-neutral-400 text-xs">{label}</div>
-      <div className="text-xl font-bold">{value ?? "--"}</div>
-    </div>
-  )
-}
-
-
-/* =======================================================
-   INLINE STRIP (MIN MODE)
-======================================================= */
+/* ================= INLINE STRIP ================= */
 
 function InlineTradeStrip({ signal, direction }: any) {
+
   if (!signal?.entry || direction === "EXIT") return null
 
   const sl = Number(signal?.sl)
@@ -394,7 +182,6 @@ function InlineTradeStrip({ signal, direction }: any) {
 
   if (!sl || !tp) return null
 
-  const entryPercent = 50
   let pricePercent = 50
 
   if (direction === "BUY") {
@@ -418,47 +205,40 @@ function InlineTradeStrip({ signal, direction }: any) {
   pricePercent = Math.max(0, Math.min(100, pricePercent))
 
   const isTPside =
-    direction === "BUY"
-      ? price >= entry
-      : price <= entry
+    direction === "BUY" ? price >= entry : price <= entry
 
   return (
     <div className="flex flex-col items-center">
 
-      <div className="relative w-full h-[clamp(14px,2vh,26px)] text-[clamp(12px,1.8vh,22px)] text-neutral-400 mb-2">
+      <div className="relative w-full h-4 text-[clamp(11px,1.1vw,14px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL/HEDZ</span>
         <span className="absolute left-1/2 -translate-x-1/2">ENTRY</span>
         <span className="absolute right-0">TP</span>
       </div>
 
-      <div className="relative w-full h-[clamp(4px,0.8vh,8px)]">
-
+      <div className="relative w-full h-[3px]">
         <div className="absolute inset-0 bg-neutral-800 rounded-full" />
-
         <div className="absolute left-0 h-full w-1/2 bg-red-500/70" />
         <div className="absolute right-0 h-full w-1/2 bg-green-500/70" />
 
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[clamp(10px,1.6vh,22px)] h-[clamp(10px,1.6vh,22px)] rounded-full border border-neutral-500 bg-black" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[clamp(10px,1.6vh,22px)] h-[clamp(10px,1.6vh,22px)] rounded-full border border-neutral-500 bg-black" />
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[clamp(10px,1.6vh,22px)] h-[clamp(10px,1.6vh,22px)] rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[10px] h-[10px] rounded-full border border-neutral-500 bg-black" />
 
         <div
           className="absolute top-1/2"
           style={{
             left: `${pricePercent}%`,
-            transform: "translate(-50%, -50%)",
-            transition: "left 300ms ease"
+            transform: "translate(-50%, -50%)"
           }}
         >
-          <div className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
-            }`} />
-          <div className={`w-[clamp(10px,1.6vh,22px)] h-[clamp(10px,1.6vh,22px)] rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
-            }`} />
+          <div className={`w-[10px] h-[10px] rounded-full ${
+            isTPside ? "bg-green-400" : "bg-red-400"
+          }`} />
         </div>
-
       </div>
 
-      <div className="w-full flex justify-between text-[clamp(12px,1.8vh,22px)] text-neutral-400 mt-2">
+      <div className="w-full flex justify-between text-[clamp(11px,1.1vw,14px)] text-neutral-400 mt-1">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
@@ -468,36 +248,24 @@ function InlineTradeStrip({ signal, direction }: any) {
   )
 }
 
-/* ======================================================
-   TRADE BAR (MID / MAX MODE)
-====================================================== */
+/* ================= TRADE BAR ================= */
 
-function TradeBar({
-  signal,
-  direction
-}: {
-  signal: any
-  direction?: "BUY" | "SELL" | "HEDGED" | "EXIT" | "--"
-}) {
+function TradeBar({ signal, direction }: any) {
 
   const sl = Number(signal?.sl)
   const tp = Number(signal?.tp)
   const entry = Number(signal?.entry)
   const price = Number(signal?.price || entry)
 
-  if (direction === "EXIT") return null
   if (!sl || !tp || !entry) return null
 
-  const entryPercent = 50
   let pricePercent = 50
 
   if (direction === "BUY") {
     const leftRange = Math.abs(entry - sl)
     const rightRange = Math.abs(tp - entry)
-
     if (price < entry && leftRange > 0)
       pricePercent = 50 - ((entry - price) / leftRange) * 50
-
     if (price > entry && rightRange > 0)
       pricePercent = 50 + ((price - entry) / rightRange) * 50
   }
@@ -505,10 +273,8 @@ function TradeBar({
   if (direction === "SELL") {
     const leftRange = Math.abs(tp - entry)
     const rightRange = Math.abs(entry - sl)
-
     if (price > entry && rightRange > 0)
       pricePercent = 50 - ((price - entry) / rightRange) * 50
-
     if (price < entry && leftRange > 0)
       pricePercent = 50 + ((entry - price) / leftRange) * 50
   }
@@ -516,80 +282,39 @@ function TradeBar({
   pricePercent = Math.max(0, Math.min(100, pricePercent))
 
   const isTPside =
-    direction === "BUY"
-      ? price >= entry
-      : price <= entry
+    direction === "BUY" ? price >= entry : price <= entry
 
   return (
     <div className="mt-3 select-none">
 
-      <div className="relative h-[clamp(16px,2.2vh,32px)] text-[clamp(14px,2vh,24px)] text-neutral-400 mb-2">
+      <div className="relative h-5 text-[clamp(12px,1.2vw,16px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL / HEDZ</span>
-        <span
-          className="absolute"
-          style={{
-            left: `${entryPercent}%`,
-            transform: "translateX(-50%)"
-          }}
-        >
-          ENTRY
-        </span>
+        <span className="absolute left-1/2 -translate-x-1/2">ENTRY</span>
         <span className="absolute right-0">TP</span>
       </div>
 
-      <div className="relative h-[clamp(12px,2vh,28px)] flex items-center overflow-visible">
+      <div className="relative h-[6px]">
+        <div className="absolute left-0 h-full w-1/2 bg-red-500/70" />
+        <div className="absolute right-0 h-full w-1/2 bg-green-500/70" />
+
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[12px] h-[12px] rounded-full border border-neutral-400" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[12px] h-[12px] rounded-full border border-neutral-400" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[12px] h-[12px] rounded-full border border-neutral-400" />
 
         <div
-          className="absolute h-[2px]"
-          style={{
-            width: `${entryPercent}%`,
-            background:
-              "linear-gradient(90deg, rgba(248,113,113,0.8), rgba(239,68,68,0.05))"
-          }}
-        />
-
-        <div
-          className="absolute h-[2px]"
-          style={{
-            left: `${entryPercent}%`,
-            width: `${100 - entryPercent}%`,
-            background:
-              "linear-gradient(90deg, rgba(34,197,94,0.05), rgba(74,222,128,0.8))"
-          }}
-        />
-
-        <div className="absolute left-0 w-[clamp(12px,2vh,26px)] h-[clamp(12px,2vh,26px)] rounded-full border border-neutral-400" />
-        <div
-          className="absolute w-[clamp(12px,2vh,26px)] h-[clamp(12px,2vh,26px)] rounded-full border border-neutral-400"
-          style={{
-            left: `${entryPercent}%`,
-            transform: "translateX(-50%)"
-          }}
-        />
-        <div className="absolute right-0 w-[clamp(12px,2vh,26px)] h-[clamp(12px,2vh,26px)] rounded-full border border-neutral-400" />
-
-        <div
-          className="absolute"
+          className="absolute top-1/2"
           style={{
             left: `${pricePercent}%`,
-            transform: "translateX(-50%)",
-            transition: "left 380ms cubic-bezier(0.22,1,0.36,1)"
+            transform: "translate(-50%, -50%)"
           }}
         >
-          <div
-            className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
-              }`}
-          />
-          <div
-            className={`w-[clamp(12px,2vh,26px)] h-[clamp(12px,2vh,26px)] rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
-              }`}
-          />
+          <div className={`w-[12px] h-[12px] rounded-full ${
+            isTPside ? "bg-green-400" : "bg-red-400"
+          }`} />
         </div>
-
       </div>
 
-      <div className="flex justify-between text-[clamp(14px,2vh,24px)] text-neutral-400 mt-2">
-
+      <div className="flex justify-between text-[clamp(12px,1.2vw,16px)] text-neutral-400 mt-1">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
