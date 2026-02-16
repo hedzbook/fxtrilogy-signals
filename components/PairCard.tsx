@@ -92,7 +92,7 @@ function PairCard({
         {signal && (
           <div className="flex justify-between items-center text-[11px] mt-1">
             <div className="text-neutral-400 font-semibold tracking-widest">
-              {(signal?.lots ?? "--")} LOTS
+              {(signal?.lots ?? "-")} LOTS
             </div>
 
             <div className="font-semibold tracking-wide">
