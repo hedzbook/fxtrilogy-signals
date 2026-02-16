@@ -198,11 +198,11 @@ export default function Page() {
     {/* LEFT SIDE */}
     <div className="flex items-center gap-2 z-10">
 
-      <div className="w-2 h-5 flex flex-col justify-center gap-[3px] cursor-pointer">
-        <div className="h-[2px] w-3 bg-neutral-400" />
-        <div className="h-[2px] w-3 bg-neutral-400" />
-        <div className="h-[2px] w-3 bg-neutral-400" />
-      </div>
+<div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
+  <div className="h-[2px] w-2 bg-neutral-400" />
+  <div className="h-[2px] w-2 bg-neutral-400" />
+  <div className="h-[2px] w-2 bg-neutral-400" />
+</div>
 
       <div className="text-[15px] font-semibold tracking-wide leading-none">
         FXHEDZ
@@ -248,18 +248,18 @@ export default function Page() {
 
     </div>
 
-    {/* RIGHT SIDE */}
-    <div className="ml-auto text-right leading-[10px] text-[9px] z-10">
+{/* RIGHT SIDE */}
+<div className="ml-auto text-right leading-[10px] text-[9px] font-mono z-10">
 
-      <div className="font-medium">
-        ZEROLOSS COMPOUNDED
-      </div>
+  <div>
+    ZEROLOSS COMPOUNDED
+  </div>
 
-      <div className="text-neutral-500">
-        HEDGING SYSTEM
-      </div>
+  <div className="text-neutral-500">
+    HEDGING  SYSTEM
+  </div>
 
-    </div>
+</div>
 
   </div>
 </div>
