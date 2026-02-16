@@ -201,7 +201,7 @@ export default function Page() {
 
             {/* LOGO */}
             <img
-              src="/favicon.png"
+              src="/public/favicon.png"
               alt="Logo"
               className="h-[26px] w-auto object-contain"
             />
