@@ -9,12 +9,11 @@ const PAIRS = [
   "BTCUSD",
   "ETHUSD",
   "EURUSD",
-  "AUDUSD",
   "GBPUSD",
   "USDJPY",
-  "GBPJPY",
+  "AUDUSD",
   "USDCHF",
-  "USDCAD"
+  "USOIL"
 ]
 
 const SIGNAL_API = "/api/signals"
