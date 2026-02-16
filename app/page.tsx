@@ -249,17 +249,17 @@ export default function Page() {
     </div>
 
 {/* RIGHT SIDE */}
-<div className="ml-auto text-right leading-[10px] text-[9px] font-mono z-10">
+<div className="ml-auto z-10 w-[140px] text-[9px] leading-[11px] font-medium">
 
-  <div>
-    ZEROLOSS COMPOUNDED
+  <div className="flex justify-between">
+    <span>ZEROLOSS</span>
+    <span>COMPOUNDED</span>
   </div>
 
-  <div className="text-neutral-500">
-    HEDGING  SYSTEM
+  <div className="flex justify-between text-neutral-500">
+    <span>HEDGING</span>
+    <span>SYSTEM</span>
   </div>
-
-</div>
 
   </div>
 </div>
