@@ -193,13 +193,13 @@ export default function Page() {
 ============================== */}
 <div className="fixed bottom-0 left-0 right-0 z-50 h-10">
 
-  <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-[14px] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+  <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-[17px] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
 
     {/* ================= LEFT SIDE ================= */}
     <div className="flex items-center gap-2 z-10">
 
       {/* Slim Hamburger */}
-      <div className="w-5 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
+      <div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
         <div className="h-[2px] w-4 bg-neutral-400" />
         <div className="h-[2px] w-4 bg-neutral-400" />
         <div className="h-[2px] w-4 bg-neutral-400" />
@@ -250,7 +250,7 @@ export default function Page() {
     </div>
 
     {/* ================= RIGHT SIDE ================= */}
-    <div className="ml-auto text-right leading-tight text-[9px] z-10">
+    <div className="ml-auto text-right leading-tight text-[7px] z-10">
 
       <div className="tracking-wide">
         ZEROLOSS COMPOUNDED
