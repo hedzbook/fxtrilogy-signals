@@ -123,19 +123,14 @@ export default function Page() {
 
   }, [authorized, openPair])
 
-  function togglePair(pair: string) {
+function togglePair(pair: string) {
 
-    if (viewMode === "MIN") {
-      setOpenPair(pair)
-      setViewMode("MAX")
-      return
-    }
-
-    if (viewMode === "MAX") {
-      setOpenPair(pair)
-    }
-
+  if (openPair === pair) {
+    setOpenPair(null)
+  } else {
+    setOpenPair(pair)
   }
+}
 
   const pairsData = useMemo(() => {
     return PAIRS.map((pair) => {
@@ -194,7 +189,7 @@ export default function Page() {
             >
               <PairCard
                 pair={pair}
-                open={viewMode === "MAX" ? true : openPair === pair}
+                open={openPair === pair}
                 direction={signal?.direction}
                 signal={signal}
                 history={extra?.history}
@@ -234,7 +229,6 @@ export default function Page() {
                   setViewMode("MAX")
                 } else {
                   setViewMode("MIN")
-                  setOpenPair(null)
                 }
 
               }}

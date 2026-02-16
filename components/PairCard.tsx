@@ -135,20 +135,6 @@ function PairCard({
               </div>
             </div>
 
-            {signal && (
-              <div className="flex justify-between items-center text-[11px] mt-1">
-                <div className="text-neutral-400 font-semibold tracking-widest">
-                  {(signal?.lots ?? "--")} LOTS
-                </div>
-
-                <div className="font-semibold tracking-wide">
-                  <span className="text-green-400">{signal?.buys ?? 0}B</span>
-                  <span className="text-neutral-500 px-1">/</span>
-                  <span className="text-red-400">{signal?.sells ?? 0}S</span>
-                </div>
-              </div>
-            )}
-
             {liveDir !== "EXIT" &&
               (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
                 <TradeBar signal={signal} direction={liveDir} />
