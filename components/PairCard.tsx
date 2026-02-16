@@ -75,17 +75,25 @@ function PairCard({
 
   return (
     <div
-      className={`border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300
-      ${liveDir === "EXIT"
-          ? "bg-gradient-to-b from-neutral-900 to-neutral-950 opacity-100 border-neutral-800/60"
+      className={`
+    border border-neutral-800 rounded-xl overflow-hidden
+    transition-all duration-300
+    ${isMin ? "h-full flex flex-col justify-center" : ""}
+    ${liveDir === "EXIT"
+          ? "bg-gradient-to-b from-neutral-900 to-neutral-950 border-neutral-800/60"
           : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"
-        }`}
+        }
+  `}
     >
-
       {/* ================= HEADER ================= */}
       <div
-  className={`${isMin ? "p-2" : "p-4"} cursor-pointer`}
-  onClick={(e) => {
+        className={`
+  cursor-pointer
+  ${isMin
+            ? "h-full flex items-center px-[clamp(10px,3vw,20px)]"
+            : "p-4"}
+`}
+        onClick={(e) => {
           e.stopPropagation()
 
           if (!isMax) {
@@ -100,8 +108,8 @@ function PairCard({
           <div className="flex items-center justify-between">
 
             <div className="flex flex-col">
-              <div className="font-semibold text-sm">{pair}</div>
-              <div className="text-neutral-400 text-[11px]">
+              <div className="font-semibold text-[clamp(12px,2vw,16px)]">{pair}</div>
+              <div className="text-neutral-400 text-[clamp(10px,1.8vw,14px)]">
                 {signal?.lots ?? "-"} LOTS
               </div>
             </div>
@@ -116,18 +124,18 @@ function PairCard({
             </div>
 
             <div className="flex flex-col items-end">
-              <div className={`font-bold text-sm ${liveDir === "BUY"
-                  ? "text-green-400"
-                  : liveDir === "SELL"
-                    ? "text-red-400"
-                    : liveDir === "HEDGED"
-                      ? "text-sky-400"
-                      : "text-neutral-500"
+              <div className={`font-bold text-[clamp(12px,2vw,16px)] ${liveDir === "BUY"
+                ? "text-green-400"
+                : liveDir === "SELL"
+                  ? "text-red-400"
+                  : liveDir === "HEDGED"
+                    ? "text-sky-400"
+                    : "text-neutral-500"
                 }`}>
                 {liveDir}
               </div>
 
-              <div className="text-[11px] font-semibold">
+              <div className="text-[clamp(10px,1.8vw,14px)] font-semibold">
                 <span className="text-green-400">{signal?.buys ?? 0}B</span>
                 <span className="text-neutral-500 px-1">/</span>
                 <span className="text-red-400">{signal?.sells ?? 0}S</span>
@@ -145,19 +153,19 @@ function PairCard({
               <div className="font-semibold">{pair}</div>
 
               <div className={`font-bold ${liveDir === "BUY"
-                  ? "text-green-400"
-                  : liveDir === "SELL"
-                    ? "text-red-400"
-                    : liveDir === "HEDGED"
-                      ? "text-sky-400"
-                      : "text-neutral-500"
+                ? "text-green-400"
+                : liveDir === "SELL"
+                  ? "text-red-400"
+                  : liveDir === "HEDGED"
+                    ? "text-sky-400"
+                    : "text-neutral-500"
                 }`}>
                 {liveDir}
               </div>
             </div>
 
             {signal && (
-              <div className="flex justify-between items-center text-[11px] mt-1">
+              <div className="flex justify-between items-center text-[clamp(10px,1.8vw,14px)] mt-1">
                 <div className="text-neutral-400 font-semibold tracking-widest">
                   {(signal?.lots ?? "--")} LOTS
                 </div>
@@ -185,7 +193,7 @@ function PairCard({
         <div className="border-t border-neutral-800">
 
           {/* TABS */}
-          <div className="flex w-full border-b border-neutral-800 text-sm">
+          <div className="flex w-full border-b border-neutral-800 text-[clamp(12px,2vw,16px)]">
             <TabBtn label="Market" active={tab === "market"} onClick={() => setTab("market")} />
             <TabBtn label="News" active={tab === "news"} onClick={() => setTab("news")} />
             <TabBtn label="History" active={tab === "history"} onClick={() => setTab("history")} />
@@ -207,17 +215,17 @@ function PairCard({
                 />
 
                 <div>
-                  <div className="text-sm text-neutral-400">Latest Signal</div>
+                  <div className="text-[clamp(12px,2vw,16px)] text-neutral-400">Latest Signal</div>
                   <div className="font-bold text-lg">
                     {signal?.direction || "--"} {signal?.entry || ""}
                   </div>
-                  <div className="text-sm text-neutral-400">
+                  <div className="text-[clamp(12px,2vw,16px)] text-neutral-400">
                     SL {signal?.sl || "--"} · TP {signal?.tp || "--"}
                   </div>
                 </div>
 
-                <div className="bg-neutral-800 rounded-lg p-2 text-sm text-neutral-300">
-                  <div className="text-sm text-neutral-400 mb-2">Active Orders</div>
+                <div className="bg-neutral-800 rounded-lg p-2 text-[clamp(12px,2vw,16px)] text-neutral-300">
+                  <div className="text-[clamp(12px,2vw,16px)] text-neutral-400 mb-2">Active Orders</div>
 
                   <div className="max-h-[170px] overflow-y-auto space-y-1">
                     {liveOrders?.length ? liveOrders.map((o, i) => {
@@ -244,8 +252,8 @@ function PairCard({
                         >
                           <div>
                             <div className={`font-semibold ${o.direction === "BUY"
-                                ? "text-green-400"
-                                : "text-red-400"
+                              ? "text-green-400"
+                              : "text-red-400"
                               }`}>
                               {o.direction}
                             </div>
@@ -266,7 +274,7 @@ function PairCard({
                       )
 
                     }) : (
-                      <div className="text-neutral-500 text-sm">
+                      <div className="text-neutral-500 text-[clamp(12px,2vw,16px)]">
                         No open orders
                       </div>
                     )}
@@ -278,10 +286,10 @@ function PairCard({
             {/* ================= NEWS ================= */}
             {tab === "news" && (
               <div className="space-y-3">
-                <div className="text-sm text-neutral-400">
+                <div className="text-[clamp(12px,2vw,16px)] text-neutral-400">
                   Market Commentary
                 </div>
-                <div className="bg-neutral-800 rounded-lg p-4 text-sm text-neutral-300">
+                <div className="bg-neutral-800 rounded-lg p-4 text-[clamp(12px,2vw,16px)] text-neutral-300">
                   {notes || "Coming Soon"}
                 </div>
               </div>
@@ -291,7 +299,7 @@ function PairCard({
             {tab === "history" && (
               <div className="space-y-2">
                 {history?.length ? history.map((h, i) => (
-                  <div key={i} className="bg-neutral-800 p-3 rounded-lg text-sm flex justify-between">
+                  <div key={i} className="bg-neutral-800 p-3 rounded-lg text-[clamp(12px,2vw,16px)] flex justify-between">
                     <div>
                       <div className={`font-semibold ${h.direction === "BUY" ? "text-green-400" : "text-red-400"
                         }`}>
@@ -306,7 +314,7 @@ function PairCard({
                     </div>
                   </div>
                 )) : (
-                  <div className="text-neutral-500 text-sm">
+                  <div className="text-neutral-500 text-[clamp(12px,2vw,16px)]">
                     No history yet
                   </div>
                 )}
@@ -317,14 +325,14 @@ function PairCard({
             {tab === "performance" && (
               <div className="space-y-4">
 
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-2 gap-3 text-[clamp(12px,2vw,16px)]">
                   <Metric label="Win Rate"
                     value={performance?.winRate !== undefined ? performance.winRate + "%" : "--"} />
                   <Metric label="Profit Factor"
                     value={performance?.profitFactor ?? "--"} />
                 </div>
 
-                <div className="space-y-2 text-sm">
+                <div className="space-y-2 text-[clamp(12px,2vw,16px)]">
                   <Stat label="Total Trades" value={performance?.trades} />
                   <Stat label="Wins" value={performance?.wins} />
                   <Stat label="Losses" value={performance?.losses} />
@@ -349,8 +357,8 @@ function TabBtn({ label, active, onClick }: any) {
     <button
       onClick={(e) => { e.stopPropagation(); onClick() }}
       className={`flex-1 py-3 text-center transition-all duration-200 ${active
-          ? "text-white border-b-2 border-white bg-neutral-900"
-          : "text-neutral-500 hover:text-neutral-300"
+        ? "text-white border-b-2 border-white bg-neutral-900"
+        : "text-neutral-500 hover:text-neutral-300"
         }`}
     >
       {label}
@@ -422,7 +430,7 @@ function InlineTradeStrip({ signal, direction }: any) {
   return (
     <div className="flex flex-col items-center">
 
-      <div className="relative w-full h-[10px] text-[8px] text-neutral-400 mb-1">
+      <div className="relative w-full h-[10px] text-[clamp(10px,1.8vw,14px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL/HEDZ</span>
         <span className="absolute left-1/2 -translate-x-1/2">ENTRY</span>
         <span className="absolute right-0">TP</span>
@@ -435,9 +443,9 @@ function InlineTradeStrip({ signal, direction }: any) {
         <div className="absolute left-0 h-[2px] w-1/2 bg-red-500/70" />
         <div className="absolute right-0 h-[2px] w-1/2 bg-green-500/70" />
 
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-neutral-500 bg-black" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-neutral-500 bg-black" />
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1.2vw,10px)] h-[clamp(6px,1.2vw,10px)] rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[clamp(6px,1.2vw,10px)] h-[clamp(6px,1.2vw,10px)] rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1.2vw,10px)] h-[clamp(6px,1.2vw,10px)] rounded-full border border-neutral-500 bg-black" />
 
         <div
           className="absolute top-1/2"
@@ -449,13 +457,13 @@ function InlineTradeStrip({ signal, direction }: any) {
         >
           <div className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
             }`} />
-          <div className={`w-2 h-2 rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
+          <div className={`w-[clamp(6px,1.2vw,10px)] h-[clamp(6px,1.2vw,10px)] rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
             }`} />
         </div>
 
       </div>
 
-      <div className="w-full flex justify-between text-[8px] text-neutral-400 mt-1">
+      <div className="w-full flex justify-between text-[clamp(10px,1.8vw,14px)] text-neutral-400 mt-1">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
@@ -585,7 +593,7 @@ function TradeBar({
 
       </div>
 
-      <div className="flex justify-between text-[11px] text-neutral-400 mt-1">
+      <div className="flex justify-between text-[clamp(10px,1.8vw,14px)] text-neutral-400 mt-1">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>

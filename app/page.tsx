@@ -172,15 +172,14 @@ export default function Page() {
       </div>
 
       {/* CONTENT AREA */}
-      <div
-        className="
-          pt-12
-          pb-12
-          px-[clamp(12px,3vw,24px)]
-          space-y-[clamp(10px,2vw,16px)]
-          min-h-screen
-        "
-      >
+<div
+  className={`
+    px-[clamp(12px,3vw,24px)]
+    ${viewMode === "MIN"
+      ? "pt-12 pb-12 flex flex-col gap-[clamp(8px,1.5vh,14px)] h-[calc(100vh-80px)]"
+      : "pt-12 pb-12 space-y-[clamp(10px,2vw,16px)]"}
+  `}
+>
 
         {PAIRS.map((pair) => {
 
