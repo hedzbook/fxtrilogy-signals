@@ -89,35 +89,48 @@ function PairCard({
           </div>
         </div>
 
-        {/* Exposure */}
-        {signal && (
-          <div className="flex justify-between items-center text-[11px] mt-1">
-            <div className="text-neutral-400 font-semibold tracking-widest">
-              {(signal?.lots ?? "-")} LOTS
-            </div>
+{/* ================= MIN MODE STRUCTURE ================= */}
+{signal && isMin && (
+  <div className="mt-2 flex items-center gap-3 text-[11px]">
 
-            <div className="font-semibold tracking-wide">
-              <span className="text-green-400">{signal?.buys ?? 0}B</span>
-              <span className="text-neutral-500 px-1">/</span>
-              <span className="text-red-400">{signal?.sells ?? 0}S</span>
-            </div>
-          </div>
+    {/* LEFT LOTS */}
+    <div className="text-neutral-400 font-semibold whitespace-nowrap">
+      {signal?.lots ?? "-"} LOTS
+    </div>
+
+    {/* CENTER TRADE STRIP */}
+    <div className="flex-1">
+      {liveDir !== "EXIT" &&
+        (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
+          <InlineTradeStrip
+            signal={signal}
+            direction={liveDir}
+          />
         )}
+    </div>
 
-        {/* TradeBar hidden in MIN mode */}
-        {liveDir !== "EXIT" &&
-          (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
-            isMin
-              ? <CompactTradeStrip
-                signal={signal}
-                direction={liveDir}
-              />
-              : <TradeBar
-                signal={signal}
-                direction={liveDir}
-                viewMode={viewMode}
-              />
-          )}
+    {/* RIGHT B/S */}
+    <div className="font-semibold whitespace-nowrap">
+      <span className="text-green-400">{signal?.buys ?? 0}B</span>
+      <span className="text-neutral-500 px-1">/</span>
+      <span className="text-red-400">{signal?.sells ?? 0}S</span>
+    </div>
+
+  </div>
+)}
+
+{/* TRADE VISUAL */}
+{liveDir !== "EXIT" &&
+  (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
+    isMin
+      ? null // handled inside MIN structure
+      : <TradeBar
+          signal={signal}
+          direction={liveDir}
+          viewMode={viewMode}
+        />
+  )}
+
       </div>
 
       {/* ================= MIN MODE = HEADER ONLY ================= */}
@@ -227,7 +240,7 @@ function PairCard({
   )
 }
 
-function CompactTradeStrip({
+function InlineTradeStrip({
   signal,
   direction
 }: {
@@ -278,57 +291,71 @@ function CompactTradeStrip({
       : price <= entry
 
   return (
-    <div className="mt-2">
+    <div className="relative h-10">
 
-      <div className="relative h-3 flex items-center">
+      {/* LABELS */}
+      <div className="absolute top-[-12px] w-full text-[9px] text-neutral-400 flex justify-between">
+        <span>SL/HEDZ</span>
+        <span>ENTRY</span>
+        <span>TP</span>
+      </div>
 
-        {/* LEFT ZONE */}
+      {/* BAR */}
+      <div className="absolute top-1/2 -translate-y-1/2 w-full h-[2px] bg-neutral-800 rounded-full" />
+
+      {/* LEFT RED */}
+      <div
+        className="absolute h-[2px]"
+        style={{
+          width: "50%",
+          background:
+            "linear-gradient(90deg, rgba(248,113,113,0.8), rgba(239,68,68,0.05))"
+        }}
+      />
+
+      {/* RIGHT GREEN */}
+      <div
+        className="absolute h-[2px]"
+        style={{
+          left: "50%",
+          width: "50%",
+          background:
+            "linear-gradient(90deg, rgba(34,197,94,0.05), rgba(74,222,128,0.8))"
+        }}
+      />
+
+      {/* PRICE DOT */}
+      <div
+        className="absolute"
+        style={{
+          left: `${pricePercent}%`,
+          transform: "translateX(-50%)",
+          transition: "left 350ms cubic-bezier(0.22,1,0.36,1)"
+        }}
+      >
         <div
-          className="absolute h-[2px]"
+          className={`absolute -inset-2 rounded-full blur-md ${
+            isTPside ? "bg-green-500/30" : "bg-red-500/30"
+          }`}
+        />
+        <div
+          className={`w-2.5 h-2.5 rounded-full ${
+            isTPside ? "bg-green-400" : "bg-red-400"
+          }`}
           style={{
-            width: "50%",
-            background:
-              "linear-gradient(90deg, rgba(248,113,113,0.8), rgba(239,68,68,0.05))"
+            boxShadow: isTPside
+              ? "0 0 12px rgba(74,222,128,0.9)"
+              : "0 0 12px rgba(248,113,113,0.9)",
+            animation: "instPulse 1.6s ease-in-out infinite"
           }}
         />
+      </div>
 
-        {/* RIGHT ZONE */}
-        <div
-          className="absolute h-[2px]"
-          style={{
-            left: "50%",
-            width: "50%",
-            background:
-              "linear-gradient(90deg, rgba(34,197,94,0.05), rgba(74,222,128,0.8))"
-          }}
-        />
-
-        {/* PRICE DOT */}
-        <div
-          className="absolute"
-          style={{
-            left: `${pricePercent}%`,
-            transform: "translateX(-50%)",
-            transition: "left 350ms cubic-bezier(0.22,1,0.36,1)"
-          }}
-        >
-          <div
-            className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
-              }`}
-          />
-
-          <div
-            className={`w-2.5 h-2.5 rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
-              }`}
-            style={{
-              boxShadow: isTPside
-                ? "0 0 14px rgba(74,222,128,0.9)"
-                : "0 0 14px rgba(248,113,113,0.9)",
-              animation: "instPulse 1.6s ease-in-out infinite"
-            }}
-          />
-        </div>
-
+      {/* PRICES */}
+      <div className="absolute bottom-[-12px] w-full text-[9px] text-neutral-400 flex justify-between">
+        <span>{sl}</span>
+        <span>{entry}</span>
+        <span>{tp}</span>
       </div>
 
       <style jsx>{`
