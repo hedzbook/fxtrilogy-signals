@@ -125,10 +125,9 @@ export default function Page() {
 
   }, [authorized, openPair])
 
-  function togglePair(pair: string) {
-    if (viewMode === "MIN") return
-    setOpenPair(prev => prev === pair ? null : pair)
-  }
+function togglePair(pair: string) {
+  setOpenPair(prev => prev === pair ? null : pair)
+}
 
   const pairsData = useMemo(() => {
     return PAIRS.map((pair) => {
