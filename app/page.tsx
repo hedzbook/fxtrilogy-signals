@@ -255,7 +255,7 @@ export default function Page() {
     ZEROLOSS COMPOUNDED
   </div>
 
-  <div className="text-neutral-500">
+  <div className="text-neutral-200">
     H E D G I N G  S Y S T E M
   </div>
 
