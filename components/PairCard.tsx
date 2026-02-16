@@ -91,29 +91,36 @@ function PairCard({
 
 {/* ================= MIN MODE STRUCTURE ================= */}
 {signal && isMin && (
-  <div className="mt-2 flex items-center gap-3 text-[11px]">
+  <div className="mt-2">
 
-    {/* LEFT LOTS */}
-    <div className="text-neutral-400 font-semibold whitespace-nowrap">
-      {signal?.lots ?? "-"} LOTS
-    </div>
+    {/* 3 Column Layout */}
+    <div className="grid grid-cols-[auto,1fr,auto] items-center gap-3">
 
-    {/* CENTER TRADE STRIP */}
-    <div className="flex-1">
-      {liveDir !== "EXIT" &&
-        (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
-          <InlineTradeStrip
-            signal={signal}
-            direction={liveDir}
-          />
-        )}
-    </div>
+      {/* LEFT LOTS */}
+      <div className="text-neutral-400 font-semibold text-[11px] whitespace-nowrap">
+        {signal?.lots ?? "-"} LOTS
+      </div>
 
-    {/* RIGHT B/S */}
-    <div className="font-semibold whitespace-nowrap">
-      <span className="text-green-400">{signal?.buys ?? 0}B</span>
-      <span className="text-neutral-500 px-1">/</span>
-      <span className="text-red-400">{signal?.sells ?? 0}S</span>
+      {/* CENTER STRIP (constrained width) */}
+      <div className="flex justify-center">
+        <div className="w-[70%]">
+          {liveDir !== "EXIT" &&
+            (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
+              <InlineTradeStrip
+                signal={signal}
+                direction={liveDir}
+              />
+            )}
+        </div>
+      </div>
+
+      {/* RIGHT B/S */}
+      <div className="font-semibold text-[11px] whitespace-nowrap text-right">
+        <span className="text-green-400">{signal?.buys ?? 0}B</span>
+        <span className="text-neutral-500 px-1">/</span>
+        <span className="text-red-400">{signal?.sells ?? 0}S</span>
+      </div>
+
     </div>
 
   </div>
@@ -291,10 +298,10 @@ function InlineTradeStrip({
       : price <= entry
 
   return (
-    <div className="relative h-7 -mt-1">
+    <div className="relative h-6">
 
       {/* LABELS */}
-      <div className="absolute top-[-8px] w-full text-[8px] text-neutral-400 flex justify-between">
+      <div className="absolute top-[-6px] w-full text-[8px] text-neutral-400 flex justify-between">
         <span>SL/HEDZ</span>
         <span>ENTRY</span>
         <span>TP</span>
@@ -352,7 +359,7 @@ function InlineTradeStrip({
       </div>
 
       {/* PRICES */}
-      <div className="absolute bottom-[-8px] w-full text-[8px] text-neutral-400 flex justify-between">
+      <div className="absolute bottom-[-6px] w-full text-[8px] text-neutral-400 flex justify-between">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
