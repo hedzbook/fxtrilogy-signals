@@ -124,7 +124,7 @@ function PairCard({
             <TabBtn label="Performance" active={tab === "performance"} onClick={() => setTab("performance")} />
           </div>
 
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-4 overflow-y-auto flex-1">
 
             {/* ================= MARKET ================= */}
             {tab === "market" && (

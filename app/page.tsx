@@ -29,6 +29,7 @@ export default function Page() {
   const [uiSignals, setUiSignals] = useState<any>({})
   const [netState, setNetState] = useState("FLAT")
   const [viewMode, setViewMode] = useState<ViewMode>("MIN")
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const tg = (window as any)?.Telegram?.WebApp
@@ -59,12 +60,13 @@ export default function Page() {
         const res = await fetch(SIGNAL_API)
         const json = await res.json()
         const incoming = json?.signals ? json.signals : json
+        setLoading(false)
 
         setSignals((prev: any) => {
           if (JSON.stringify(prev) === JSON.stringify(incoming)) return prev
           return incoming
         })
-      } catch {}
+      } catch { }
     }
 
     loadSignals()
@@ -99,7 +101,7 @@ export default function Page() {
           ...prev,
           [pairKey]: json
         }))
-      } catch {}
+      } catch { }
     }
 
     refreshOpenPair()
@@ -139,10 +141,10 @@ export default function Page() {
     )
   }
 
-return (
-  <main className="h-screen text-white bg-black flex flex-col overflow-hidden">
+  return (
+    <main className="h-screen text-white bg-black flex flex-col overflow-hidden">
       {/* TOP STRIP */}
-      <div className="fixed top-0 left-0 right-0 z-50 h-10">
+      <div className="h-10 shrink-0">
         <AccountStrip
           pairs={pairsData}
           onStateChange={(state: string) => {
@@ -152,32 +154,45 @@ return (
       </div>
 
       {/* CONTENT */}
-      <div className="flex-1 px-4 py-2 flex flex-col gap-2 overflow-hidden">
-        {PAIRS.map((pair) => {
-          const signal = uiSignals?.[pair]
-          const extra = pairData?.[pair] || {}
+<div className="flex-1 px-4 py-2 flex flex-col gap-2 overflow-hidden">
+  {loading
+    ? PAIRS.map((pair) => (
+        <div key={pair} className="flex-1 min-h-0">
+          <div className="h-full rounded-xl bg-neutral-900 animate-pulse" />
+        </div>
+      ))
+    : PAIRS.map((pair) => {
+        const signal = uiSignals?.[pair]
+        const extra = pairData?.[pair] || {}
 
-          return (
-            <div key={pair} className="flex-1 min-h-0">
-              <PairCard
-                pair={pair}
-                open={openPair === pair}
-                direction={signal?.direction}
-                signal={signal}
-                history={extra?.history}
-                orders={extra?.orders}
-                performance={extra?.performance}
-                notes={extra?.notes}
-                viewMode={viewMode}
-                onToggle={() => togglePair(pair)}
-              />
-            </div>
-          )
-        })}
-      </div>
+        return (
+          <div
+            key={pair}
+            className={
+              openPair === pair
+                ? "flex-[3] min-h-0"
+                : "flex-1 min-h-0"
+            }
+          >
+            <PairCard
+              pair={pair}
+              open={openPair === pair}
+              direction={signal?.direction}
+              signal={signal}
+              history={extra?.history}
+              orders={extra?.orders}
+              performance={extra?.performance}
+              notes={extra?.notes}
+              viewMode={viewMode}
+              onToggle={() => togglePair(pair)}
+            />
+          </div>
+        )
+      })}
+</div>
 
       {/* BOTTOM BAR */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 h-10">
+      <div className="h-10 shrink-0">
         <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-[17px] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
           <div className="flex items-center gap-2 z-10">
             <div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
