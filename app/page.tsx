@@ -144,7 +144,7 @@ export default function Page() {
   }
 
   return (
-    <main className="h-screen text-white bg-black flex flex-col overflow-hidden">
+    <main className="min-h-[100dvh] text-white bg-black flex flex-col">
       {/* TOP STRIP */}
       <div className="h-9 shrink-0">
         <AccountStrip
