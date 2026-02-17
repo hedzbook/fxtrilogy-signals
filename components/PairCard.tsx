@@ -482,7 +482,7 @@ function TradeBar({
   return (
     <div className="mt-3 select-none">
 
-      <div className="relative h-3 text-[10px] text-neutral-400 mb-1">
+      <div className="relative h-3 text-[clamp(8px,2.2vw,10px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL / HEDZ</span>
         <span
           className="absolute"
