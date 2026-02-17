@@ -183,8 +183,8 @@ useEffect(() => {
                       return (
                         <div
                           key={key}
-                          className={`bg-neutral-900 p-2 rounded-md text-xs flex justify-between transition-all duration-300 ${pulseClass}`}
-                        >
+                          className={`bg-neutral-900 px-2 py-2 min-h-[38px] rounded-md text-xs flex justify-between ...`}
+>
                           <div>
                             <div className={`font-semibold ${o.direction === "BUY"
                               ? "text-green-400"
