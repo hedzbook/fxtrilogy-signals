@@ -62,7 +62,7 @@ return (
       {/* LEFT COLUMN */}
       <div className="flex-1 flex items-center">
         <div className="flex items-center gap-2">
-          <span className="text-neutral-400">LOTS:</span>
+          <span className="text-neutral-400">LOTS</span>
           <span className="font-semibold">{totalLots.toFixed(2)}</span>
         </div>
       </div>
