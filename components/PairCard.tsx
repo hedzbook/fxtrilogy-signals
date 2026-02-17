@@ -117,7 +117,7 @@ function PairCard({
 
       {/* ================= EXPANDED CONTENT ================= */}
       {expanded && (
-        <div className="border-t border-neutral-800 h-[calc(85vh-72px)] flex flex-col">
+        <div className="border-t border-neutral-800 flex flex-col flex-1 min-h-0">
 
           {/* TABS */}
           <div className="flex w-full border-b border-neutral-800 text-sm">
