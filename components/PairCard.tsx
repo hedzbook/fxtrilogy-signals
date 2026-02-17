@@ -61,7 +61,8 @@ function PairCard({
 >
 
 {/* ================= HEADER ================= */}
-<div className="h-[92px] px-4 py-1 flex flex-col justify-center cursor-pointer">
+<div
+  className="h-[96px] px-4 py-2 flex flex-col justify-center cursor-pointer"
   onClick={(e) => {
     e.stopPropagation()
     onToggle()
