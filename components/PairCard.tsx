@@ -56,7 +56,6 @@ useEffect(() => {
   return (
 <div
   className={`
-    text-[clamp(10px,2.2vw,16px)]
     relative
     transition-all duration-300
     border border-neutral-800 rounded-xl
