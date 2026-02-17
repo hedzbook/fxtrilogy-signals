@@ -71,7 +71,6 @@ useEffect(() => {
   `}
 >
 
-
 {/* ================= HEADER ================== */}
 <div className="h-[72px] px-4 py-[6px] flex flex-col justify-between cursor-pointer"
   onClick={(e) => {
