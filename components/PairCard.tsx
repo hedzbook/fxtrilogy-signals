@@ -309,7 +309,6 @@ function Metric({ label, value }: any) {
     </div>
   )
 }
-1
 
 /* =======================================================
    INLINE STRIP (MIN MODE)
