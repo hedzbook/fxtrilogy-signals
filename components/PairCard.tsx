@@ -48,8 +48,8 @@ function PairCard({
   return (
 <div
   className={`
+    h-full flex flex-col
     border border-neutral-800 rounded-xl overflow-hidden
-    transition-all duration-300
     ${liveDir === "EXIT"
       ? "bg-gradient-to-b from-neutral-900 to-neutral-950 border-neutral-800/60"
       : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"
@@ -59,12 +59,13 @@ function PairCard({
 
 {/* ================= HEADER ================= */}
 <div
-  className="px-4 py-3 cursor-pointer"
+  className="flex-1 px-4 flex items-center cursor-pointer"
   onClick={(e) => {
     e.stopPropagation()
     onToggle()
   }}
 >
+
   {signal && (
     <div className="flex w-full items-center justify-between">
 

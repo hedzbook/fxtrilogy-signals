@@ -139,8 +139,8 @@ export default function Page() {
     )
   }
 
-  return (
-    <main className="min-h-screen text-white bg-black">
+return (
+  <main className="h-screen text-white bg-black flex flex-col overflow-hidden">
       {/* TOP STRIP */}
       <div className="fixed top-0 left-0 right-0 z-50 h-10">
         <AccountStrip
@@ -152,13 +152,13 @@ export default function Page() {
       </div>
 
       {/* CONTENT */}
-      <div className="pt-12 pb-12 px-4 flex flex-col gap-3">
+      <div className="flex-1 px-4 py-2 flex flex-col gap-2 overflow-hidden">
         {PAIRS.map((pair) => {
           const signal = uiSignals?.[pair]
           const extra = pairData?.[pair] || {}
 
           return (
-            <div key={pair}>
+            <div key={pair} className="flex-1 min-h-0">
               <PairCard
                 pair={pair}
                 open={openPair === pair}
