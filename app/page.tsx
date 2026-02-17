@@ -146,7 +146,7 @@ export default function Page() {
   return (
     <main className="h-screen text-white bg-black flex flex-col overflow-hidden">
       {/* TOP STRIP */}
-      <div className="h-10 shrink-0">
+      <div className="h-8 shrink-0">
         <AccountStrip
           pairs={pairsData}
           onStateChange={(state: string) => {
