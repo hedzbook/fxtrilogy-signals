@@ -56,20 +56,25 @@ useEffect(() => {
   return (
 <div
   className={`
+    text-[clamp(10px,2.2vw,16px)]
     relative
     transition-all duration-300
     border border-neutral-800 rounded-xl
-    overflow-hidden
-    ${expanded ? "h-[calc(100vh-80px)]" : "h-[72px]"}
-    ${liveDir === "EXIT"
-      ? "bg-gradient-to-b from-neutral-900 to-neutral-950 border-neutral-800/60"
-      : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"
-    }
+    overflow-hidden flex flex-col
+    ${expanded ? "flex-[9]" : "flex-1"}
   `}
 >
 
 {/* ================= HEADER ================== */}
-<div className="h-[72px] px-4 py-[6px] flex flex-col justify-between cursor-pointer"
+<div
+  className="
+    flex-shrink-0
+    flex flex-col
+    justify-center
+    px-3
+    py-2
+    cursor-pointer"
+
   onClick={(e) => {
     e.stopPropagation()
     onToggle()
@@ -81,11 +86,11 @@ useEffect(() => {
 
       {/* ROW 1 — PAIR + DIRECTION */}
       <div className="flex justify-between items-center">
-        <div className="font-semibold text-[14px] leading-none">
+        <div className="font-semibold text-[clamp(10px,1.8vh,20px)] leading-none">
           {pair}
         </div>
 
-        <div className={`font-bold text-[14px] ${
+        <div className={`font-bold text-[clamp(10px,1.8vh,20px)] ${
           liveDir === "BUY"
             ? "text-green-400"
             : liveDir === "SELL"
@@ -99,7 +104,7 @@ useEffect(() => {
       </div>
 
       {/* ROW 2 — LOTS + B/S COUNT */}
-      <div className="flex justify-between items-center text-[10px] leading-none">
+      <div className="flex justify-between items-center text-[clamp(8px,1.3vh,14px)] leading-none">
         <div className="text-neutral-400">
           {signal?.lots ?? "-"} LOTS
         </div>
@@ -133,14 +138,14 @@ useEffect(() => {
             <TabBtn label="Performance" active={tab === "performance"} onClick={() => setTab("performance")} />
           </div>
 
-          <div className="p-4 space-y-4 overflow-y-auto flex-1">
+          <div className="p-3 space-y-3 flex flex-col h-full">
 
             {/* ================= MARKET ================= */}
             {tab === "market" && (
               <>
                 <div
                   id={`chart_mount_${pair}`}
-                  className="w-full h-[280px] rounded-lg bg-neutral-900"
+                  className="w-full h-[35vh] min-h-[180px] max-h-[320px]"
                 />
                 <GlobalLightChart
                   mountId={`chart_mount_${pair}`}
@@ -160,7 +165,7 @@ useEffect(() => {
                 <div className="bg-neutral-800 rounded-lg p-2 text-sm text-neutral-300">
                   <div className="text-sm text-neutral-400 mb-2">Active Orders</div>
 
-                  <div className="max-h-[150px] overflow-y-auto space-y-1">
+                  <div className="min-h-[120px] max-h-[30vh] overflow-y-auto space-y-1">
                     {liveOrders?.length ? liveOrders.map((o, i) => {
 
                       const key = o.id || `${o.direction}_${o.entry}_${o.time}`
@@ -181,8 +186,8 @@ useEffect(() => {
                       return (
                         <div
                           key={key}
-                          className={`bg-neutral-900 p-2 rounded-md text-xs flex justify-between transition-all duration-300 ${pulseClass}`}
-                        >
+                          className={`bg-neutral-900 px-2 py-2 min-h-[38px] rounded-md text-xs flex justify-between ...`}
+>
                           <div>
                             <div className={`font-semibold ${o.direction === "BUY"
                               ? "text-green-400"
@@ -363,27 +368,27 @@ function InlineTradeStrip({ signal, direction }: any) {
       : price <= entry
 
   return (
-    <div className="flex flex-col w-full">
+    <div className="flex flex-col w-full gap-[1px]">
 
       {/* BAR */}
-      <div className="relative w-full h-[2px]">
+      <div className="relative w-full h-[0.4vh]">
 
         <div className="absolute inset-0 bg-neutral-800 rounded-full" />
 
         {/* left half */}
-        <div className="absolute left-0 h-[2px] w-1/2 bg-red-500/70" />
+        <div className="absolute left-0 h-[0.4vh] w-1/2 bg-red-500/70" />
 
         {/* right half */}
-        <div className="absolute right-0 h-[2px] w-1/2 bg-green-500/70" />
+        <div className="absolute right-0 h-[0.4vh] w-1/2 bg-green-500/70" />
 
         {/* SL dot */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[1vh] h-[1vh] rounded-full border border-neutral-500 bg-black" />
 
 {/* ENTRY dot */}
-<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[3px] h-[3px] rounded-full bg-neutral-400" />
+<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[0.5vh] h-[0.5vh] rounded-full bg-neutral-400" />
 
         {/* TP dot */}
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[1vh] h-[1vh] rounded-full border border-neutral-500 bg-black" />
 
         {/* LIVE DOT */}
         <div
@@ -400,7 +405,7 @@ function InlineTradeStrip({ signal, direction }: any) {
             }`}
           />
           <div
-            className={`w-2 h-2 rounded-full ${
+            className={`w-[1vh] h-[1vh] rounded-full ${
               isTPside ? "bg-green-400" : "bg-red-400"
             }`}
           />
@@ -409,7 +414,7 @@ function InlineTradeStrip({ signal, direction }: any) {
       </div>
 
       {/* PRICE ROW */}
-      <div className="flex justify-between text-[10px] text-neutral-400 mt-[2px]">
+      <div className="flex justify-between text-[clamp(8px,2.4vw,10px)] text-neutral-400 mt-[1px]">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
@@ -473,7 +478,7 @@ function TradeBar({
   return (
     <div className="mt-3 select-none">
 
-      <div className="relative h-3 text-[10px] text-neutral-400 mb-1">
+      <div className="relative h-3 text-[clamp(8px,1.3vh,14px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL / HEDZ</span>
         <span
           className="absolute"
@@ -490,7 +495,7 @@ function TradeBar({
       <div className="relative h-6 flex items-center overflow-visible">
 
         <div
-          className="absolute h-[2px]"
+          className="absolute h-[0.4vh]"
           style={{
             width: `${entryPercent}%`,
             background:
@@ -499,7 +504,7 @@ function TradeBar({
         />
 
         <div
-          className="absolute h-[2px]"
+          className="absolute h-[0.4vh]"
           style={{
             left: `${entryPercent}%`,
             width: `${100 - entryPercent}%`,

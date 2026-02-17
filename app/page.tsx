@@ -143,93 +143,92 @@ export default function Page() {
     )
   }
 
-  return (
-    <main className="h-screen text-white bg-black flex flex-col overflow-hidden">
-      {/* TOP STRIP */}
-      <div className="h-10 shrink-0">
-        <AccountStrip
-          pairs={pairsData}
-          onStateChange={(state: string) => {
-            setNetState(state)
-          }}
+return (
+<main className="h-[100dvh] bg-black text-white flex flex-col">
+
+  {/* TOP BAR */}
+  <div className="h-8 shrink-0 shadow-[0_8px_20px_rgba(0,0,0,0.5)]">
+    <AccountStrip
+      pairs={pairsData}
+      onStateChange={(state: string) => {
+        setNetState(state)
+      }}
+    />
+  </div>
+
+  {/* SCROLL AREA */}
+  <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 flex flex-col">
+
+    {PAIRS.map((pair) => {
+      const signal = uiSignals?.[pair]
+      const extra = pairData?.[pair] || {}
+
+      return (
+        <PairCard
+          key={pair}
+          pair={pair}
+          open={viewMode === "MAX" ? true : openPair === pair}
+          direction={signal?.direction}
+          signal={signal}
+          history={extra?.history}
+          orders={extra?.orders}
+          performance={extra?.performance}
+          notes={extra?.notes}
+          viewMode={viewMode}
+          onToggle={() => togglePair(pair)}
         />
-      </div>
+      )
+    })}
 
-      {/* CONTENT */}
-      <div className="flex-1 px-4 py-2 overflow-y-auto space-y-2">
-        {loading
-          ? PAIRS.map((pair) => (
-            <div key={pair} className="h-[72px]">
-              <div className="h-full rounded-xl bg-neutral-900 animate-pulse" />
-            </div>
-          ))
-          : PAIRS.map((pair) => {
-            const signal = uiSignals?.[pair]
-            const extra = pairData?.[pair] || {}
+  </div>
 
-            return (
-              <div
-                key={pair}
-                className="min-h-0"
-              >
-                <PairCard
-                  pair={pair}
-                  open={viewMode === "MAX" ? true : openPair === pair}
-                  direction={signal?.direction}
-                  signal={signal}
-                  history={extra?.history}
-                  orders={extra?.orders}
-                  performance={extra?.performance}
-                  notes={extra?.notes}
-                  viewMode={viewMode}
-                  onToggle={() => togglePair(pair)}
-                />
-              </div>
-            )
-          })}
-      </div>
-
-      {/* BOTTOM BAR */}
-      <div className="h-10 shrink-0">
-        <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-[17px] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
-          <div className="flex items-center gap-2 z-10">
-            <div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
-              <div className="h-[2px] w-2 bg-neutral-400" />
-              <div className="h-[2px] w-2 bg-neutral-400" />
-              <div className="h-[2px] w-2 bg-neutral-400" />
-            </div>
-            <div className="text-[15px] font-semibold tracking-wide leading-none">
-              FXHEDZ
-            </div>
+  {/* BOTTOM BAR */}
+  <div className="h-9 shrink-0">
+    <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-3 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+        <div className="flex items-center gap-2 z-10">
+          <div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
+            <div className="h-[2px] w-2 bg-neutral-400" />
+            <div className="h-[2px] w-2 bg-neutral-400" />
+            <div className="h-[2px] w-2 bg-neutral-400" />
           </div>
-
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <button
-onClick={() => {
-  if (viewMode === "MIN") {
-    setViewMode("MAX")
-    setOpenPair(null)
-  } else {
-    setViewMode("MIN")
-    setOpenPair(null)
-  }
-}}
-              className={`pointer-events-auto w-12 h-6 rounded-full transition-all duration-300 relative
-                ${viewMode === "MIN" ? "bg-neutral-700" : "bg-neutral-500"}`}
-            >
-              <div
-                className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white transition-all duration-300
-                  ${viewMode === "MIN" ? "left-1" : "right-1"}`}
-              />
-            </button>
-          </div>
-
-          <div className="ml-auto text-right z-10 flex flex-col items-end">
-            <div className="text-[5px] font-medium tracking-[0.5px] leading-[11px]">ZEROLOSS COMPOUNDED</div>
-            <div className="text-[9px] text-neutral-500 tracking-[2.2px] leading-[11px]">HEDGING SYSTEM</div>
+          <div className="text-[clamp(10px,1.8vh,20px)] font-semibold leading-none">
+            FXHEDZ
           </div>
         </div>
+
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <button
+            onClick={() => {
+              if (viewMode === "MIN") {
+                setViewMode("MAX")
+                setOpenPair(null)
+              } else {
+                setViewMode("MIN")
+                setOpenPair(null)
+              }
+            }}
+            className={`pointer-events-auto w-12 h-6 rounded-full transition-all duration-300 relative
+              ${viewMode === "MIN" ? "bg-neutral-700" : "bg-neutral-500"}`}
+          >
+            <div
+              className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white transition-all duration-300
+                ${viewMode === "MIN" ? "left-1" : "right-1"}`}
+            />
+          </button>
+        </div>
+
+        <div className="ml-auto text-right z-10 flex flex-col items-end">
+          <div className="text-[5px] leading-[11px]">
+            ZEROLOSS COMPOUNDED
+          </div>
+          <div className="text-[9px] text-neutral-500 leading-[11px]">
+            HEDGING SYSTEM
+          </div>
+        </div>
+
       </div>
-    </main>
-  )
+    </div>
+
+  </main>
+)
 }
