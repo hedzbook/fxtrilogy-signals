@@ -182,10 +182,9 @@ return (
 
   </div>
 
-    {/* BOTTOM BAR */}
-    <div className="fixed bottom-0 left-0 right-0 h-9 z-50">
-      <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-3 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
-
+  {/* BOTTOM BAR */}
+  <div className="h-9 shrink-0">
+    <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-3 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
         <div className="flex items-center gap-2 z-10">
           <div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
             <div className="h-[2px] w-2 bg-neutral-400" />
