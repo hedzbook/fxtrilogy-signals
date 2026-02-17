@@ -372,7 +372,7 @@ function InlineTradeStrip({ signal, direction }: any) {
       : price <= entry
 
   return (
-    <div className="flex flex-col w-full">
+    <div className="flex flex-col w-full gap-[1px]">
 
       {/* BAR */}
       <div className="relative w-full h-[2px]">
