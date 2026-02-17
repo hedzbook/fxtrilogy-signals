@@ -81,7 +81,7 @@ useEffect(() => {
 
       {/* ROW 1 — PAIR + DIRECTION */}
       <div className="flex justify-between items-center">
-        <div className="font-semibold text-[15px] leading-none">
+        <div className="font-semibold text-[14px] leading-none">
           {pair}
         </div>
 
