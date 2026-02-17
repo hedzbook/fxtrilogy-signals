@@ -387,13 +387,13 @@ function InlineTradeStrip({ signal, direction }: any) {
         <div className="absolute right-0 h-[0.4vh] w-1/2 bg-green-500/70" />
 
         {/* SL dot */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[1vh] h-[1vh] rounded-full border border-neutral-500 bg-black" />
 
 {/* ENTRY dot */}
 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[3px] h-[3px] rounded-full bg-neutral-400" />
 
         {/* TP dot */}
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[1vh] h-[1vh] rounded-full border border-neutral-500 bg-black" />
 
         {/* LIVE DOT */}
         <div
@@ -410,7 +410,7 @@ function InlineTradeStrip({ signal, direction }: any) {
             }`}
           />
           <div
-            className={`w-2 h-2 rounded-full ${
+            className={`w-[1vh] h-[1vh] rounded-full ${
               isTPside ? "bg-green-400" : "bg-red-400"
             }`}
           />
