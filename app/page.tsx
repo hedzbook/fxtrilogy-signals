@@ -158,7 +158,7 @@ export default function Page() {
       {/* CONTENT */}
       <div
   className={`
-    flex-1 px-4 py-2 space-y-2
+    flex-1 px-4 pt-2 pb-3 space-y-2
     ${openPair || viewMode === "MAX" ? "overflow-y-auto" : "overflow-hidden"}
   `}
 >
