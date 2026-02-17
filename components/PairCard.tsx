@@ -61,7 +61,9 @@ useEffect(() => {
     transition-all duration-300
     border border-neutral-800 rounded-xl
     overflow-hidden flex flex-col
-    ${expanded ? "flex-[9]" : "flex-1"}
+    {expanded && (
+  <div className="border-t border-neutral-800 flex flex-col flex-1 min-h-0 overflow-y-auto">
+
   `}
 >
 
