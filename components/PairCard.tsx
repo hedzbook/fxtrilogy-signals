@@ -42,7 +42,7 @@ function PairCard({
 
   const isMin = viewMode === "MIN"
   const isMax = viewMode === "MAX"
-  const expanded = viewMode === "MAX" && open
+const expanded = !!open
 
   useEffect(() => setLiveDir(dir), [dir])
   useEffect(() => setLiveOrders(orders ?? []), [orders])
@@ -146,7 +146,7 @@ function PairCard({
       </div>
 
       {/* ================= EXPANDED CONTENT ================= */}
-      {viewMode === "MAX" && expanded && (
+      {expanded && (
         <div className="border-t border-neutral-800">
 
           {/* TABS */}

@@ -171,7 +171,7 @@ function togglePair(pair: string) {
         className={`
           pt-16 px-4
           ${viewMode === "MIN"
-            ? "flex flex-col gap-2 h-[calc(100vh-80px)] overflow-hidden"
+  ? "flex flex-col gap-2 min-h-[calc(100vh-80px)]"
             : "space-y-3 pb-16"
           }
         `}
