@@ -418,7 +418,7 @@ function InlineTradeStrip({ signal, direction }: any) {
       </div>
 
       {/* PRICE ROW */}
-      <div className="flex justify-between text-[clamp(8px,2.4vw,10px)] text-neutral-400 mt-[2px]">
+      <div className="flex justify-between text-[clamp(8px,2.4vw,10px)] text-neutral-400 mt-[1px]">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
