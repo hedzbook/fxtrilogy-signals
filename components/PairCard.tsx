@@ -60,7 +60,7 @@ useEffect(() => {
     relative
     transition-all duration-300
     border border-neutral-800 rounded-xl
-    overflow-hidden
+    overflow-hidden flex flex-col
     ${expanded ? "flex-[9]" : "flex-1"}
   `}
 >
