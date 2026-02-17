@@ -142,7 +142,7 @@ useEffect(() => {
               <>
                 <div
                   id={`chart_mount_${pair}`}
-                  className="w-full h-[280px] rounded-lg bg-neutral-900"
+                  className="w-full h-[35vh] min-h-[180px] max-h-[320px]"
                 />
                 <GlobalLightChart
                   mountId={`chart_mount_${pair}`}
