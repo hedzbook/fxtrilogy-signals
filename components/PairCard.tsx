@@ -68,12 +68,14 @@ useEffect(() => {
 {/* ================= HEADER ================== */}
 <div
   className="
-    h-full
+    flex-shrink-0
     flex flex-col
     justify-center
     px-3
+    py-2
     cursor-pointer
   "
+
   onClick={(e) => {
     e.stopPropagation()
     onToggle()
