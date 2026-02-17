@@ -24,18 +24,16 @@ export default function Page() {
 
   const [signals, setSignals] = useState<any>({})
   const [pairData, setPairData] = useState<any>({})
-  const [openPair, setOpenPair] = useState<string | null>(null)
+  const [openPair, setOpenPair] = useState<string | null>(null)  // Track only one expanded pair
   const [authorized, setAuthorized] = useState(false)
   const [uiSignals, setUiSignals] = useState<any>({})
   const [netState, setNetState] = useState("FLAT")
   const [viewMode, setViewMode] = useState<ViewMode>("MIN")
 
   useEffect(() => {
-
     const tg = (window as any)?.Telegram?.WebApp
 
     if (tg && tg.initDataUnsafe?.user?.id) {
-
       tg.ready()
       tg.expand()
       tg.disableVerticalSwipes()
@@ -48,15 +46,12 @@ export default function Page() {
       document.body.style.touchAction = "pan-y"
 
       setAuthorized(true)
-
     } else {
       setAuthorized(false)
     }
-
   }, [])
 
   useEffect(() => {
-
     if (!authorized) return
 
     async function loadSignals() {
@@ -69,18 +64,15 @@ export default function Page() {
           if (JSON.stringify(prev) === JSON.stringify(incoming)) return prev
           return incoming
         })
-
-      } catch { }
+      } catch {}
     }
 
     loadSignals()
     const interval = setInterval(loadSignals, 2500)
     return () => clearInterval(interval)
-
   }, [authorized])
 
   useEffect(() => {
-
     const timer = setTimeout(() => {
       setUiSignals((prev: any) => {
         if (JSON.stringify(prev) === JSON.stringify(signals)) return prev
@@ -89,11 +81,9 @@ export default function Page() {
     }, 90)
 
     return () => clearTimeout(timer)
-
   }, [signals])
 
   useEffect(() => {
-
     if (!authorized || !openPair) return
 
     const pairKey = openPair
@@ -109,8 +99,7 @@ export default function Page() {
           ...prev,
           [pairKey]: json
         }))
-
-      } catch { }
+      } catch {}
     }
 
     refreshOpenPair()
@@ -120,17 +109,16 @@ export default function Page() {
       cancelled = true
       clearInterval(interval)
     }
-
   }, [authorized, openPair])
 
-function togglePair(pair: string) {
-
-  if (openPair === pair) {
-    setOpenPair(null)
-  } else {
-    setOpenPair(pair)
+  function togglePair(pair: string) {
+    // Toggle between open/close pair expansion
+    if (openPair === pair) {
+      setOpenPair(null) // Collapse the pair
+    } else {
+      setOpenPair(pair) // Expand the specific pair
+    }
   }
-}
 
   const pairsData = useMemo(() => {
     return PAIRS.map((pair) => {
@@ -145,9 +133,7 @@ function togglePair(pair: string) {
       <main className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center space-y-2">
           <div className="text-xl font-bold">FXHEDZ</div>
-          <div className="text-neutral-400 text-sm">
-            Open via Telegram Bot
-          </div>
+          <div className="text-neutral-400 text-sm">Open via Telegram Bot</div>
         </div>
       </main>
     )
@@ -155,7 +141,6 @@ function togglePair(pair: string) {
 
   return (
     <main className="min-h-screen text-white bg-black">
-
       {/* TOP STRIP */}
       <div className="fixed top-0 left-0 right-0 z-50 h-10">
         <AccountStrip
@@ -168,25 +153,15 @@ function togglePair(pair: string) {
 
       {/* CONTENT */}
       <div
-        className={`
-          pt-16 px-4
-          ${viewMode === "MIN"
-  ? "flex flex-col gap-2 min-h-[calc(100vh-80px)]"
-            : "space-y-3 pb-16"
-          }
-        `}
+        className={`pt-16 px-4
+          ${viewMode === "MIN" ? "flex flex-col gap-2 min-h-[calc(100vh-80px)]" : "space-y-3 pb-16"}`}
       >
-
         {PAIRS.map((pair) => {
-
           const signal = uiSignals?.[pair]
           const extra = pairData?.[pair] || {}
 
           return (
-            <div
-              key={pair}
-              className={viewMode === "MIN" ? "flex-1 min-h-0" : ""}
-            >
+            <div key={pair}>
               <PairCard
                 pair={pair}
                 open={openPair === pair}
@@ -202,13 +177,11 @@ function togglePair(pair: string) {
             </div>
           )
         })}
-
       </div>
 
       {/* BOTTOM BAR */}
       <div className="fixed bottom-0 left-0 right-0 z-50 h-10">
         <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-[17px] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
-
           <div className="flex items-center gap-2 z-10">
             <div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
               <div className="h-[2px] w-2 bg-neutral-400" />
@@ -221,49 +194,30 @@ function togglePair(pair: string) {
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-
             <button
               onClick={() => {
-
                 if (viewMode === "MIN") {
                   setViewMode("MAX")
                 } else {
                   setViewMode("MIN")
                 }
-
               }}
-              className={`
-                pointer-events-auto
-                w-12 h-6 rounded-full transition-all duration-300 relative
-${viewMode === "MIN"
-                  ? "bg-neutral-700"
-                  : "bg-neutral-500"}
-              `}
+              className={`pointer-events-auto w-12 h-6 rounded-full transition-all duration-300 relative
+                ${viewMode === "MIN" ? "bg-neutral-700" : "bg-neutral-500"}`}
             >
               <div
-                className={`
-                  absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white transition-all duration-300
-${viewMode === "MIN"
-                    ? "left-1"
-                    : "right-1"}
-                `}
+                className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white transition-all duration-300
+                  ${viewMode === "MIN" ? "left-1" : "right-1"}`}
               />
             </button>
-
           </div>
 
           <div className="ml-auto text-right z-10 flex flex-col items-end">
-            <div className="text-[5px] font-medium tracking-[0.5px] leading-[11px]">
-              ZEROLOSS COMPOUNDED
-            </div>
-            <div className="text-[9px] text-neutral-500 tracking-[2.2px] leading-[11px]">
-              HEDGING SYSTEM
-            </div>
+            <div className="text-[5px] font-medium tracking-[0.5px] leading-[11px]">ZEROLOSS COMPOUNDED</div>
+            <div className="text-[9px] text-neutral-500 tracking-[2.2px] leading-[11px]">HEDGING SYSTEM</div>
           </div>
-
         </div>
       </div>
-
     </main>
   )
 }

@@ -32,118 +32,84 @@ function PairCard({
   orders,
   performance,
   notes
-}: Props){
+}: Props) {
 
   const dir: TradeDirection = direction ?? "--"
   const [liveDir, setLiveDir] = useState<TradeDirection>(dir)
   const [tab, setTab] = useState<"market" | "news" | "history" | "performance">("market")
   const [liveOrders, setLiveOrders] = useState<any[]>(orders ?? [])
   const [pnlCache, setPnlCache] = useState<Record<string, number>>({})
-
-  const isMin = viewMode === "MIN"
-  const isMax = viewMode === "MAX"
-const expanded = !!open
+  const expanded = !!open
 
   useEffect(() => setLiveDir(dir), [dir])
   useEffect(() => setLiveOrders(orders ?? []), [orders])
   useEffect(() => { if (expanded) setTab("market") }, [expanded])
 
   return (
-    <div
-      className={`
-        border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300
-        ${isMin ? "h-full flex flex-col justify-center" : ""}
-        ${liveDir === "EXIT"
-          ? "bg-gradient-to-b from-neutral-900 to-neutral-950 border-neutral-800/60"
-          : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"
-        }
-      `}
-    >
+<div
+  className={`
+    border border-neutral-800 rounded-xl overflow-hidden
+    transition-all duration-300
+    ${liveDir === "EXIT"
+      ? "bg-gradient-to-b from-neutral-900 to-neutral-950 border-neutral-800/60"
+      : "bg-[linear-gradient(180deg,rgba(20,20,20,0.9),rgba(0,0,0,0.95))]"
+    }
+  `}
+>
 
-      {/* ================= HEADER ================= */}
-      <div
-        className={`
-          ${isMin ? "flex-1 flex items-center px-4" : "p-4"}
-          cursor-pointer
-        `}
-        onClick={(e) => {
-          e.stopPropagation()
-          onToggle()
-        }}
-      >
+{/* ================= HEADER ================= */}
+<div
+  className="px-4 py-3 cursor-pointer"
+  onClick={(e) => {
+    e.stopPropagation()
+    onToggle()
+  }}
+>
+  {signal && (
+    <div className="flex w-full items-center justify-between">
 
-        {/* ================= MIN MODE ================= */}
-        {isMin && signal ? (
-          <div className="flex w-full items-center justify-between">
-
-            <div className="flex flex-col justify-center">
-              <div className="font-semibold text-base">{pair}</div>
-              <div className="text-neutral-400 text-xs">
-                {signal?.lots ?? "-"} LOTS
-              </div>
-            </div>
-
-            <div className="flex-1 flex justify-center px-4">
-              <div className="w-full max-w-[340px]">
-                <InlineTradeStrip
-                  signal={signal}
-                  direction={liveDir}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end justify-center">
-              <div className={`font-bold text-base ${
-                liveDir === "BUY"
-                  ? "text-green-400"
-                  : liveDir === "SELL"
-                    ? "text-red-400"
-                    : liveDir === "HEDGED"
-                      ? "text-sky-400"
-                      : "text-neutral-500"
-              }`}>
-                {liveDir}
-              </div>
-
-              <div className="text-xs font-semibold">
-                <span className="text-green-400">{signal?.buys ?? 0}B</span>
-                <span className="text-neutral-500 px-1">/</span>
-                <span className="text-red-400">{signal?.sells ?? 0}S</span>
-              </div>
-            </div>
-
-          </div>
-        ) : (
-
-          /* ================= MID / MAX HEADER ================= */
-
-          <div className="w-full">
-
-            <div className="flex justify-between items-center">
-              <div className="font-semibold">{pair}</div>
-
-              <div className={`font-bold ${
-                liveDir === "BUY"
-                  ? "text-green-400"
-                  : liveDir === "SELL"
-                    ? "text-red-400"
-                    : liveDir === "HEDGED"
-                      ? "text-sky-400"
-                      : "text-neutral-500"
-              }`}>
-                {liveDir}
-              </div>
-            </div>
-
-            {liveDir !== "EXIT" &&
-              (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
-                <TradeBar signal={signal} direction={liveDir} />
-              )}
-
-          </div>
-        )}
-
+      {/* LEFT */}
+      <div className="flex flex-col justify-center">
+        <div className="font-semibold text-base">{pair}</div>
+        <div className="text-neutral-400 text-xs">
+          {signal?.lots ?? "-"} LOTS
+        </div>
       </div>
+
+      {/* CENTER TRADE STRIP */}
+      <div className="flex-1 flex justify-center px-4">
+        <div className="w-full max-w-[340px]">
+          <InlineTradeStrip
+            signal={signal}
+            direction={liveDir}
+          />
+        </div>
+      </div>
+
+      {/* RIGHT */}
+      <div className="flex flex-col items-end justify-center">
+        <div className={`font-bold text-base ${
+          liveDir === "BUY"
+            ? "text-green-400"
+            : liveDir === "SELL"
+              ? "text-red-400"
+              : liveDir === "HEDGED"
+                ? "text-sky-400"
+                : "text-neutral-500"
+        }`}>
+          {liveDir}
+        </div>
+
+        <div className="text-xs font-semibold">
+          <span className="text-green-400">{signal?.buys ?? 0}B</span>
+          <span className="text-neutral-500 px-1">/</span>
+          <span className="text-red-400">{signal?.sells ?? 0}S</span>
+        </div>
+      </div>
+
+    </div>
+  )}
+</div>
 
       {/* ================= EXPANDED CONTENT ================= */}
       {expanded && (
@@ -209,8 +175,8 @@ const expanded = !!open
                         >
                           <div>
                             <div className={`font-semibold ${o.direction === "BUY"
-                                ? "text-green-400"
-                                : "text-red-400"
+                              ? "text-green-400"
+                              : "text-red-400"
                               }`}>
                               {o.direction}
                             </div>
@@ -314,8 +280,8 @@ function TabBtn({ label, active, onClick }: any) {
     <button
       onClick={(e) => { e.stopPropagation(); onClick() }}
       className={`flex-1 py-3 text-center transition-all duration-200 ${active
-          ? "text-white border-b-2 border-white bg-neutral-900"
-          : "text-neutral-500 hover:text-neutral-300"
+        ? "text-white border-b-2 border-white bg-neutral-900"
+        : "text-neutral-500 hover:text-neutral-300"
         }`}
     >
       {label}
