@@ -1,39 +1,63 @@
-# File: autopush.ps1
-# Auto-stage, commit, and push any changes in the repo
+# autopush.ps1
 
 $path = Split-Path -Parent $MyInvocation.MyCommand.Definition
 Set-Location $path
 
-# Watch for any file changes in the repo
+Write-Host "FXHEDZ Auto Git running..."
+
+$global:timer = $null
+$global:isRunning = $false
+
+function Start-DebounceTimer {
+
+    if ($global:timer) {
+        $global:timer.Stop()
+        $global:timer.Dispose()
+    }
+
+    $global:timer = New-Object Timers.Timer
+    $global:timer.Interval = 2000   # 2 seconds after last change
+    $global:timer.AutoReset = $false
+
+    Register-ObjectEvent $global:timer Elapsed -Action {
+
+        if ($global:isRunning) { return }
+
+        $global:isRunning = $true
+
+        $status = git status --porcelain
+
+        if ($status) {
+            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+            git add .
+            git commit -m "auto update $timestamp" 2>$null
+            git push 2>$null
+
+            Write-Host "$timestamp - Auto pushed"
+        }
+
+        $global:isRunning = $false
+    } | Out-Null
+
+    $global:timer.Start()
+}
+
 $watcher = New-Object System.IO.FileSystemWatcher
 $watcher.Path = $path
 $watcher.IncludeSubdirectories = $true
 $watcher.EnableRaisingEvents = $true
 $watcher.Filter = "*.*"
 
-# Event action
 $action = {
-    Start-Sleep -Milliseconds 500  # debounce quick repeated changes
-    $status = git status --porcelain
-    if ($status) {
-        # Prepare commit message
-        $files = git status --porcelain | ForEach-Object { ($_ -split ' ')[-1] } | Out-String
-        $msg = "Auto-commit: $($files.Trim())"
-
-        git add .
-        git commit -m "$msg" 2>$null
-
-        # Push to origin
-        git push origin main 2>$null
-        Write-Host "$(Get-Date -Format 'HH:mm:ss') - Auto-pushed: $($files.Trim())"
-    }
+    Start-DebounceTimer
 }
 
-# Register events
-Register-ObjectEvent $watcher Created -Action $action
-Register-ObjectEvent $watcher Changed -Action $action
-Register-ObjectEvent $watcher Deleted -Action $action
-Register-ObjectEvent $watcher Renamed -Action $action
+Register-ObjectEvent $watcher Created -Action $action | Out-Null
+Register-ObjectEvent $watcher Changed -Action $action | Out-Null
+Register-ObjectEvent $watcher Deleted -Action $action | Out-Null
+Register-ObjectEvent $watcher Renamed -Action $action | Out-Null
 
-Write-Host "Watching for changes in $path. Press Ctrl+C to exit."
+Write-Host "Watching for changes. Press Ctrl+C to exit."
+
 while ($true) { Start-Sleep 1 }
