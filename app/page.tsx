@@ -195,7 +195,7 @@ export default function Page() {
       </div>
 
       {/* BOTTOM BAR */}
-      <div className="h-10 shrink-0">
+      <div className="h-8 shrink-0">
         <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-[17px] shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
           <div className="flex items-center gap-2 z-10">
             <div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
