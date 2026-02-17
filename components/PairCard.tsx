@@ -73,76 +73,13 @@ const expanded = !!open
       >
 
         {/* ================= MIN MODE ================= */}
-        {isMin && signal ? (
-          <div className="flex w-full items-center justify-between">
-
-            <div className="flex flex-col justify-center">
-              <div className="font-semibold text-base">{pair}</div>
-              <div className="text-neutral-400 text-xs">
-                {signal?.lots ?? "-"} LOTS
-              </div>
-            </div>
-
-            <div className="flex-1 flex justify-center px-4">
-              <div className="w-full max-w-[340px]">
-                <InlineTradeStrip
-                  signal={signal}
-                  direction={liveDir}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end justify-center">
-              <div className={`font-bold text-base ${
-                liveDir === "BUY"
-                  ? "text-green-400"
-                  : liveDir === "SELL"
-                    ? "text-red-400"
-                    : liveDir === "HEDGED"
-                      ? "text-sky-400"
-                      : "text-neutral-500"
-              }`}>
-                {liveDir}
-              </div>
-
-              <div className="text-xs font-semibold">
-                <span className="text-green-400">{signal?.buys ?? 0}B</span>
-                <span className="text-neutral-500 px-1">/</span>
-                <span className="text-red-400">{signal?.sells ?? 0}S</span>
-              </div>
-            </div>
-
-          </div>
-        ) : (
-
-          /* ================= MID / MAX HEADER ================= */
-
-          <div className="w-full">
-
-            <div className="flex justify-between items-center">
-              <div className="font-semibold">{pair}</div>
-
-              <div className={`font-bold ${
-                liveDir === "BUY"
-                  ? "text-green-400"
-                  : liveDir === "SELL"
-                    ? "text-red-400"
-                    : liveDir === "HEDGED"
-                      ? "text-sky-400"
-                      : "text-neutral-500"
-              }`}>
-                {liveDir}
-              </div>
-            </div>
-
-            {liveDir !== "EXIT" &&
-              (liveDir === "HEDGED" || (signal?.entry && signal?.sl && signal?.tp)) && (
-                <TradeBar signal={signal} direction={liveDir} />
-              )}
-
-          </div>
-        )}
-
+{signal && (
+  <div className="flex w-full items-center justify-between">
+    ...
+    <InlineTradeStrip />
+    ...
+  </div>
+)}
       </div>
 
       {/* ================= EXPANDED CONTENT ================= */}
