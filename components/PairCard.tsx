@@ -85,7 +85,7 @@ useEffect(() => {
           {pair}
         </div>
 
-        <div className={`font-bold text-base ${
+        <div className={`font-bold text-[14px] ${
           liveDir === "BUY"
             ? "text-green-400"
             : liveDir === "SELL"
