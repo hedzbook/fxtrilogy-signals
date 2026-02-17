@@ -76,7 +76,7 @@ ${expanded
   ${viewMode === "MIN" 
     ? "h-[48px]" 
     : "h-[72px]"}
-  px-3 py-1 flex flex-col justify-between cursor-pointer
+  "px-3 py-1 flex flex-col justify-between cursor-pointer"
   onClick={(e) => {
     e.stopPropagation()
     onToggle()
