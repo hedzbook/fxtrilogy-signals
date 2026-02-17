@@ -109,7 +109,7 @@ ${expanded
       </div>
 
       {/* ROW 2 — LOTS + B/S COUNT */}
-      <div className="flex justify-between items-center text-[clamp(8px,2.2vw,10px)] leading-none">
+      <div className="flex justify-between items-center text-[clamp(8px,1.3vh,14px)] leading-none">
         <div className="text-neutral-400">
           {signal?.lots ?? "-"} LOTS
         </div>
@@ -483,7 +483,7 @@ function TradeBar({
   return (
     <div className="mt-3 select-none">
 
-      <div className="relative h-3 text-[clamp(8px,2.2vw,10px)] text-neutral-400 mb-1">
+      <div className="relative h-3 text-[clamp(8px,1.3vh,14px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL / HEDZ</span>
         <span
           className="absolute"
