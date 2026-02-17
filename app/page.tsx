@@ -152,10 +152,7 @@ export default function Page() {
       </div>
 
       {/* CONTENT */}
-      <div
-        className={`pt-16 px-4
-          ${viewMode === "MIN" ? "flex flex-col gap-2 min-h-[calc(100vh-80px)]" : "space-y-3 pb-16"}`}
-      >
+      <div className="pt-12 pb-12 px-4 flex flex-col gap-3">
         {PAIRS.map((pair) => {
           const signal = uiSignals?.[pair]
           const extra = pairData?.[pair] || {}

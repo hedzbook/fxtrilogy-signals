@@ -123,7 +123,7 @@ function PairCard({
             <TabBtn label="Performance" active={tab === "performance"} onClick={() => setTab("performance")} />
           </div>
 
-          <div className="h-[70dvh] overflow-y-auto overscroll-contain p-4 space-y-4">
+          <div className="p-4 space-y-4">
 
             {/* ================= MARKET ================= */}
             {tab === "market" && (
@@ -150,7 +150,7 @@ function PairCard({
                 <div className="bg-neutral-800 rounded-lg p-2 text-sm text-neutral-300">
                   <div className="text-sm text-neutral-400 mb-2">Active Orders</div>
 
-                  <div className="max-h-[170px] overflow-y-auto space-y-1">
+                  <div className="max-h-[150px] overflow-y-auto space-y-1">
                     {liveOrders?.length ? liveOrders.map((o, i) => {
 
                       const key = o.id || `${o.direction}_${o.entry}_${o.time}`
