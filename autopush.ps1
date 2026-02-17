@@ -36,17 +36,20 @@ while ($true) {
 
             if ($status) {
 
-$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+                $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
-git branch -M main
+                git branch -M main
 
-git add .
+                git add .
 
-git pull origin main --rebase
+                # Commit FIRST
+                git commit -m "auto update $timestamp"
 
-git commit -m "auto update $timestamp" 2>$null
+                # Then rebase safely
+                git pull origin main --rebase
 
-git push origin main
+                # Then push
+                git push origin main
 
                 Write-Host "$timestamp - Auto pushed"
             }
