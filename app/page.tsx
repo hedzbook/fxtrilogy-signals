@@ -154,42 +154,38 @@ export default function Page() {
       </div>
 
       {/* CONTENT */}
-<div className="flex-1 px-4 py-2 flex flex-col gap-2 overflow-hidden">
-  {loading
-    ? PAIRS.map((pair) => (
-        <div key={pair} className="flex-1 min-h-0">
-          <div className="h-full rounded-xl bg-neutral-900 animate-pulse" />
-        </div>
-      ))
-    : PAIRS.map((pair) => {
-        const signal = uiSignals?.[pair]
-        const extra = pairData?.[pair] || {}
+      <div className="flex-1 px-4 py-2 flex flex-col gap-2 overflow-y-auto">
+        {loading
+          ? PAIRS.map((pair) => (
+            <div key={pair} className="flex-1 min-h-0">
+              <div className="h-full rounded-xl bg-neutral-900 animate-pulse" />
+            </div>
+          ))
+          : PAIRS.map((pair) => {
+            const signal = uiSignals?.[pair]
+            const extra = pairData?.[pair] || {}
 
-        return (
-          <div
-            key={pair}
-            className={
-              openPair === pair
-                ? "flex-[3] min-h-0"
-                : "flex-1 min-h-0"
-            }
-          >
-            <PairCard
-              pair={pair}
-              open={openPair === pair}
-              direction={signal?.direction}
-              signal={signal}
-              history={extra?.history}
-              orders={extra?.orders}
-              performance={extra?.performance}
-              notes={extra?.notes}
-              viewMode={viewMode}
-              onToggle={() => togglePair(pair)}
-            />
-          </div>
-        )
-      })}
-</div>
+            return (
+              <div
+                key={pair}
+                className="min-h-0"
+              >
+                <PairCard
+                  pair={pair}
+                  open={viewMode === "MAX" ? true : openPair === pair}
+                  direction={signal?.direction}
+                  signal={signal}
+                  history={extra?.history}
+                  orders={extra?.orders}
+                  performance={extra?.performance}
+                  notes={extra?.notes}
+                  viewMode={viewMode}
+                  onToggle={() => togglePair(pair)}
+                />
+              </div>
+            )
+          })}
+      </div>
 
       {/* BOTTOM BAR */}
       <div className="h-10 shrink-0">
@@ -212,6 +208,7 @@ export default function Page() {
                   setViewMode("MAX")
                 } else {
                   setViewMode("MIN")
+                  setOpenPair(null)
                 }
               }}
               className={`pointer-events-auto w-12 h-6 rounded-full transition-all duration-300 relative

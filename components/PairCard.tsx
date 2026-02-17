@@ -48,7 +48,7 @@ function PairCard({
   return (
 <div
   className={`
-    h-full flex flex-col
+    flex flex-col
     border border-neutral-800 rounded-xl overflow-hidden
     ${liveDir === "EXIT"
       ? "bg-gradient-to-b from-neutral-900 to-neutral-950 border-neutral-800/60"
