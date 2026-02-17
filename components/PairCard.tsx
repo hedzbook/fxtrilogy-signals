@@ -72,7 +72,11 @@ ${expanded
 >
 
 {/* ================= HEADER ================== */}
-<div className="h-[72px] px-4 py-[6px] flex flex-col justify-between cursor-pointer"
+<div className={`
+  ${viewMode === "MIN" 
+    ? "h-[48px]" 
+    : "h-[72px]"}
+  px-3 py-1 flex flex-col justify-between cursor-pointer
   onClick={(e) => {
     e.stopPropagation()
     onToggle()
