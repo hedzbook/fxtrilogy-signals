@@ -61,10 +61,8 @@ useEffect(() => {
     transition-all duration-300
     border border-neutral-800 rounded-xl
     overflow-hidden flex flex-col
-    ${viewMode === "MIN" && !expanded ? "justify-center" : ""}
-    flex-none
+    ${viewMode === "MIN" && !expanded ? "justify-center flex-none mb-1 last:mb-0" : ""}
     ${expanded ? "z-20 shadow-xl" : "z-0"}
-    mb-1 last:mb-0
   `}
 >
 
@@ -133,7 +131,7 @@ useEffect(() => {
 
       {/* ================= EXPANDED CONTENT ================ */}
       {expanded && (
-        <div className="border-t border-neutral-800 flex flex-col flex-1 min-h-0 overflow-y-auto">
+        <div className="border-t border-neutral-800 flex flex-col flex-1 min-h-0 overflow-y-auto responsive-expanded-content">
 
           {/* TABS */}
           <div className="flex w-full border-b border-neutral-800 text-sm">

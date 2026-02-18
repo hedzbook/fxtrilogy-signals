@@ -138,24 +138,16 @@ useEffect(() => {
     })
   }, [uiSignals, pairData])
 
-if (!authorized) {
-  return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center">
-      <div className="text-center space-y-2">
-        <div className="text-xl font-bold">FXHEDZ</div>
-
-        <div className="text-neutral-400 text-sm">
-          Open via official FXHEDZ APP
+  if (!authorized) {
+    return (
+      <main className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="text-xl font-bold">FXHEDZ</div>
+          <div className="text-neutral-400 text-sm">Open via Telegram Bot</div>
         </div>
-
-        <div className="text-neutral-500 text-sm">
-          visit t.me/fxhedzbot
-        </div>
-
-      </div>
-    </main>
-  )
-}
+      </main>
+    )
+  }
 
 return (
 <main
@@ -166,7 +158,7 @@ return (
 >
 
   {/* TOP BAR */}
-  <div className="shrink-0" style={{ height: "2.5em" }}>
+  <div className="shrink-0 responsive-bar-top">
     <AccountStrip
       pairs={pairsData}
       onStateChange={(state: string) => {
@@ -187,7 +179,7 @@ return (
       ? { gridTemplateRows: `repeat(${PAIRS.length}, 1fr)` }
       : undefined
   }
-> 
+>
 
     {PAIRS.map((pair) => {
       const signal = uiSignals?.[pair]
@@ -213,13 +205,13 @@ return (
   </div>
 
   {/* BOTTOM BAR */}
-  <div className="shrink-0" style={{ height: "2.8em" }}>
+  <div className="shrink-0 responsive-bar-bottom">
     <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-3 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
         <div className="flex items-center gap-2 z-10">
-          <div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
-            <div className="h-[2px] w-2 bg-neutral-400" />
-            <div className="h-[2px] w-2 bg-neutral-400" />
-            <div className="h-[2px] w-2 bg-neutral-400" />
+          <div className="w-[clamp(8px,1vw,18px)] h-[clamp(18px,2.5vh,38px)] flex flex-col justify-center gap-[2px] cursor-pointer">
+            <div className="h-[clamp(2px,0.3vh,5px)] w-full bg-neutral-400" />
+            <div className="h-[clamp(2px,0.3vh,5px)] w-full bg-neutral-400" />
+            <div className="h-[clamp(2px,0.3vh,5px)] w-full bg-neutral-400" />
           </div>
           <div className="text-[clamp(10px,1.8vh,22px)] font-semibold leading-none">
             FXHEDZ
@@ -237,21 +229,21 @@ return (
                 setOpenPair(null)
               }
             }}
-            className={`pointer-events-auto w-12 h-6 rounded-full transition-all duration-300 relative
+            className={`pointer-events-auto w-[clamp(60px,12vw,320px)] h-[clamp(32px,5vh,80px)] rounded-full transition-all duration-300 relative
               ${viewMode === "MIN" ? "bg-neutral-700" : "bg-neutral-500"}`}
           >
             <div
-              className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white transition-all duration-300
-                ${viewMode === "MIN" ? "left-1" : "right-1"}`}
+              className={`absolute top-1/2 -translate-y-1/2 w-[clamp(24px,3vw,56px)] h-[clamp(24px,3vw,56px)] rounded-full bg-white transition-all duration-300
+                ${viewMode === "MIN" ? "left-2" : "right-2"}`}
             />
           </button>
         </div>
 
         <div className="ml-auto text-right z-10 flex flex-col items-end">
-          <div className="text-[5px] leading-[11px]">
+          <div className="text-[clamp(7px,1vw,14px)] leading-[clamp(11px,1.5vh,22px)]">
             ZEROLOSS COMPOUNDED
           </div>
-          <div className="text-[9px] text-neutral-500 leading-[11px]">
+          <div className="text-[clamp(9px,1.2vw,18px)] text-neutral-500 leading-[clamp(11px,1.5vh,22px)]">
             HEDGING SYSTEM
           </div>
         </div>
