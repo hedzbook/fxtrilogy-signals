@@ -53,6 +53,12 @@ export default function Page() {
       setAuthorized(false)
     }
   }, [])
+// Dev-only override for browser testing
+useEffect(() => {
+  if (process.env.NODE_ENV === "development") {
+    setAuthorized(true)
+  }
+}, [])
 
   useEffect(() => {
     if (!authorized) return
@@ -132,22 +138,35 @@ export default function Page() {
     })
   }, [uiSignals, pairData])
 
-  if (!authorized) {
-    return (
-      <main className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <div className="text-xl font-bold">FXHEDZ</div>
-          <div className="text-neutral-400 text-sm">Open via Telegram Bot</div>
+if (!authorized) {
+  return (
+    <main className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="text-center space-y-2">
+        <div className="text-xl font-bold">FXHEDZ</div>
+
+        <div className="text-neutral-400 text-sm">
+          Open via official FXHEDZ APP
         </div>
-      </main>
-    )
-  }
+
+        <div className="text-neutral-500 text-sm">
+          visit t.me/fxhedzbot
+        </div>
+
+      </div>
+    </main>
+  )
+}
 
 return (
-<main className="h-[100dvh] bg-black text-white flex flex-col">
+<main
+  className="h-[100dvh] bg-black text-white flex flex-col"
+  style={{
+    fontSize: "clamp(12px, 1vw, 18px)"
+  }}
+>
 
   {/* TOP BAR */}
-  <div className="h-8 shrink-0 shadow-[0_8px_20px_rgba(0,0,0,0.5)]">
+  <div className="shrink-0" style={{ height: "2.5em" }}>
     <AccountStrip
       pairs={pairsData}
       onStateChange={(state: string) => {
@@ -157,7 +176,18 @@ return (
   </div>
 
   {/* SCROLL AREA */}
-  <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 flex flex-col">
+<div
+  className={`flex-1 px-3 py-2 ${
+    viewMode === "MIN" && !openPair
+      ? "grid overflow-hidden"
+      : "flex flex-col overflow-y-auto"
+  }`}
+  style={
+    viewMode === "MIN" && !openPair
+      ? { gridTemplateRows: `repeat(${PAIRS.length}, 1fr)` }
+      : undefined
+  }
+> 
 
     {PAIRS.map((pair) => {
       const signal = uiSignals?.[pair]
@@ -183,7 +213,7 @@ return (
   </div>
 
   {/* BOTTOM BAR */}
-  <div className="h-9 shrink-0">
+  <div className="shrink-0" style={{ height: "2.8em" }}>
     <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-3 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
         <div className="flex items-center gap-2 z-10">
           <div className="w-2 h-5 flex flex-col justify-center gap-[2px] cursor-pointer">
@@ -191,7 +221,7 @@ return (
             <div className="h-[2px] w-2 bg-neutral-400" />
             <div className="h-[2px] w-2 bg-neutral-400" />
           </div>
-          <div className="text-[clamp(10px,1.8vh,20px)] font-semibold leading-none">
+          <div className="text-[clamp(10px,1.8vh,22px)] font-semibold leading-none">
             FXHEDZ
           </div>
         </div>

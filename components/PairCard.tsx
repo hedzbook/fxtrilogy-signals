@@ -56,12 +56,15 @@ useEffect(() => {
   return (
 <div
   className={`
-    text-[clamp(10px,2.2vw,16px)]
+    text-[clamp(10px,1.1vw,20px)]
     relative
     transition-all duration-300
     border border-neutral-800 rounded-xl
     overflow-hidden flex flex-col
-    ${expanded ? "flex-[9]" : "flex-1"}
+    ${viewMode === "MIN" && !expanded ? "justify-center" : ""}
+    flex-none
+    ${expanded ? "z-20 shadow-xl" : "z-0"}
+    mb-1 last:mb-0
   `}
 >
 
@@ -82,15 +85,15 @@ useEffect(() => {
 >
 
   {signal && (
-    <div className="flex flex-col gap-[2px] w-full">
+    <div className="flex flex-col w-full">
 
       {/* ROW 1 — PAIR + DIRECTION */}
       <div className="flex justify-between items-center">
-        <div className="font-semibold text-[clamp(10px,1.8vh,20px)] leading-none">
+        <div className="font-semibold text-[clamp(10px,1.8vh,22px)] leading-none">
           {pair}
         </div>
 
-        <div className={`font-bold text-[clamp(10px,1.8vh,20px)] ${
+        <div className={`font-bold text-[clamp(10px,1.8vh,22px)] ${
           liveDir === "BUY"
             ? "text-green-400"
             : liveDir === "SELL"
@@ -103,8 +106,8 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* ROW 2 — LOTS + B/S COUNT */}
-      <div className="flex justify-between items-center text-[clamp(8px,1.3vh,14px)] leading-none">
+{/* ROW 2 — LOTS + B/S COUNT */}
+<div className="mt-[clamp(1px,0.4vw,6px)] flex justify-between items-center text-[clamp(8px,1.3vh,18px)] leading-none">
         <div className="text-neutral-400">
           {signal?.lots ?? "-"} LOTS
         </div>
@@ -117,10 +120,12 @@ useEffect(() => {
       </div>
 
       {/* ROW 3 — TRADE BAR */}
-      <InlineTradeStrip
-        signal={signal}
-        direction={liveDir}
-      />
+<div className="mt-[clamp(1px,0.8vw,10px)]">
+  <InlineTradeStrip
+    signal={signal}
+    direction={liveDir}
+  />
+</div>
 
     </div>
   )}
@@ -360,7 +365,7 @@ function InlineTradeStrip({ signal, direction }: any) {
       pricePercent = 50 + ((entry - price) / leftRange) * 50
   }
 
-  pricePercent = Math.max(0, Math.min(100, pricePercent))
+  pricePercent = Math.max(0.9, Math.min(99.2, pricePercent))
 
   const isTPside =
     direction === "BUY"
@@ -368,53 +373,90 @@ function InlineTradeStrip({ signal, direction }: any) {
       : price <= entry
 
   return (
-    <div className="flex flex-col w-full gap-[1px]">
+    <div className="flex flex-col w-full gap-[clamp(1px,0.8vw,10px)]">
 
       {/* BAR */}
-      <div className="relative w-full h-[0.4vh]">
+      <div className="relative w-full h-[clamp(2px,0.35vw,6px)]">
 
         <div className="absolute inset-0 bg-neutral-800 rounded-full" />
 
         {/* left half */}
-        <div className="absolute left-0 h-[0.4vh] w-1/2 bg-red-500/70" />
+        <div className="absolute left-0 h-[clamp(2px,0.35vw,6px)] w-1/2 bg-red-500/70" />
 
         {/* right half */}
-        <div className="absolute right-0 h-[0.4vh] w-1/2 bg-green-500/70" />
+        <div className="absolute right-0 h-[clamp(2px,0.35vw,6px)] w-1/2 bg-green-500/70" />
 
         {/* SL dot */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[1vh] h-[1vh] rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full border border-neutral-500 bg-black" />
 
 {/* ENTRY dot */}
-<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[0.5vh] h-[0.5vh] rounded-full bg-neutral-400" />
+<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full bg-neutral-400" />
 
         {/* TP dot */}
-        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[1vh] h-[1vh] rounded-full border border-neutral-500 bg-black" />
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full border border-neutral-500 bg-black" />
 
-        {/* LIVE DOT */}
-        <div
-          className="absolute top-1/2"
-          style={{
-            left: `${pricePercent}%`,
-            transform: "translate(-50%, -50%)",
-            transition: "left 300ms ease"
-          }}
-        >
-          <div
-            className={`absolute -inset-2 rounded-full blur-md ${
-              isTPside ? "bg-green-500/30" : "bg-red-500/30"
-            }`}
-          />
-          <div
-            className={`w-[1vh] h-[1vh] rounded-full ${
-              isTPside ? "bg-green-400" : "bg-red-400"
-            }`}
-          />
-        </div>
+{/* LIVE DOT */}
+<div
+  className="absolute top-1/2"
+  style={{
+    left: `${pricePercent}%`,
+    transform: "translate(-50%, -50%)",
+    transition: "left 300ms ease"
+  }}
+>
+
+  {/* OUTER PULSE RING — MODERATE */}
+  <div
+    className={`
+      absolute
+      w-[clamp(12px,1.8vw,36px)]
+      h-[clamp(12px,1.8vw,36px)]
+      -translate-x-1/2
+      -translate-y-1/2
+      left-1/2
+      top-1/2
+      rounded-full
+      ${isTPside ? "bg-green-400/35" : "bg-red-400/35"}
+      animate-ping
+    `}
+    style={{
+      animationDuration: "0.85s"
+    }}
+  />
+
+  {/* STATIC SOFT HALO */}
+  <div
+    className={`
+      absolute
+      w-[clamp(9px,1.4vw,28px)]
+      h-[clamp(9px,1.4vw,28px)]
+      -translate-x-1/2
+      -translate-y-1/2
+      left-1/2
+      top-1/2
+      rounded-full
+      blur-lg
+      ${isTPside ? "bg-green-500/45" : "bg-red-500/45"}
+    `}
+  />
+
+  {/* CORE DOT — EXACT SIZE YOU WANT */}
+  <div
+    className={`
+      relative
+      w-[clamp(6px,1.3vw,28px)]
+      h-[clamp(6px,1.3vw,28px)]
+      rounded-full
+      ${isTPside ? "bg-green-400" : "bg-red-400"}
+    `}
+  />
+
+</div>
 
       </div>
 
       {/* PRICE ROW */}
-      <div className="flex justify-between text-[clamp(8px,2.4vw,10px)] text-neutral-400 mt-[1px]">
+      <div className="flex justify-between text-[clamp(8px,2.4vw,16px)] text-neutral-400">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
@@ -468,7 +510,7 @@ function TradeBar({
       pricePercent = 50 + ((entry - price) / leftRange) * 50
   }
 
-  pricePercent = Math.max(0, Math.min(100, pricePercent))
+  pricePercent = Math.max(0.9, Math.min(99.2, pricePercent))
 
   const isTPside =
     direction === "BUY"
@@ -478,7 +520,7 @@ function TradeBar({
   return (
     <div className="mt-3 select-none">
 
-      <div className="relative h-3 text-[clamp(8px,1.3vh,14px)] text-neutral-400 mb-1">
+      <div className="relative h-3 text-[clamp(12px,1vw,16px)] text-neutral-400 mb-1">
         <span className="absolute left-0">SL / HEDZ</span>
         <span
           className="absolute"
@@ -495,7 +537,7 @@ function TradeBar({
       <div className="relative h-6 flex items-center overflow-visible">
 
         <div
-          className="absolute h-[0.4vh]"
+          className="absolute h-[clamp(2px,0.35vw,6px)]"
           style={{
             width: `${entryPercent}%`,
             background:
@@ -504,7 +546,7 @@ function TradeBar({
         />
 
         <div
-          className="absolute h-[0.4vh]"
+          className="absolute h-[clamp(2px,0.35vw,6px)]"
           style={{
             left: `${entryPercent}%`,
             width: `${100 - entryPercent}%`,
