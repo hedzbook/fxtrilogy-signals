@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // =========================================
+  // ========================================
   // STREAM MODE (NEW)
   // =========================================
   const encoder = new TextEncoder()
