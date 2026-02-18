@@ -73,8 +73,8 @@ useEffect(() => {
     justify-center
     px-3
     py-2
-    cursor-pointer"
-
+    cursor-pointer
+  "
   onClick={(e) => {
     e.stopPropagation()
     onToggle()
