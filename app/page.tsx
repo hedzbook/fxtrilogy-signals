@@ -7,6 +7,7 @@ import VerticalSymbolButton from "@/components/VerticalSymbolButton"
 import PairDetail from "@/components/PairDetail"
 import AuthButton from "@/components/AuthButton"
 import { useSession } from "next-auth/react"
+import AccessOverlay from "@/components/AccessOverlay"
 
 const PAIRS = [
   "XAUUSD",
@@ -31,23 +32,9 @@ export default function Page() {
   const [openPair, setOpenPair] = useState<string | null>(null)
   const [uiSignals, setUiSignals] = useState<any>({})
   const [netState, setNetState] = useState("FLAT")
-  const [viewMode, setViewMode] = useState<ViewMode>("MIN")
-  const [loading, setLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
-  const { data: session, status } = useSession()
   const [subActive, setSubActive] = useState<boolean | null>(null)
-
-  // ✅ ADD DEVICE INITIALIZER HERE
-  useEffect(() => {
-    let id = localStorage.getItem("fxhedz_device_id")
-
-    if (!id) {
-      id = crypto.randomUUID()
-      localStorage.setItem("fxhedz_device_id", id)
-    }
-
-    document.cookie = `fx_device=${id}; path=/; max-age=31536000`
-  }, [])
+  const { data: session } = useSession()
 
 useEffect(() => {
   if (subActive !== true) return
@@ -57,7 +44,6 @@ useEffect(() => {
         const res = await fetch(SIGNAL_API)
         const json = await res.json()
         const incoming = json?.signals ? json.signals : json
-        setLoading(false)
 
         setSignals((prev: any) => {
           if (JSON.stringify(prev) === JSON.stringify(incoming)) return prev
@@ -76,8 +62,21 @@ useEffect(() => {
   // CHECK SUBSCRIPTION STATUS
   // =============================
 useEffect(() => {
+  async function init() {
+let id = localStorage.getItem("fxhedz_device_id")
 
-  async function checkAccess() {
+if (!id) {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    id = crypto.randomUUID()
+  } else {
+    id = Date.now().toString() + Math.random().toString(36).substring(2)
+  }
+
+  localStorage.setItem("fxhedz_device_id", id)
+}
+
+    document.cookie = `fx_device=${id}; path=/; max-age=31536000`
+
     try {
       const res = await fetch("/api/subscription")
       const data = await res.json()
@@ -87,24 +86,7 @@ useEffect(() => {
     }
   }
 
-  checkAccess()
-
-}, [])
-
-useEffect(() => {
-
-  async function checkAccess() {
-    try {
-      const res = await fetch("/api/subscription")
-      const data = await res.json()
-      setSubActive(data.active)
-    } catch {
-      setSubActive(false)
-    }
-  }
-
-  checkAccess()
-
+  init()
 }, [])
 
   useEffect(() => {
@@ -118,8 +100,8 @@ useEffect(() => {
     return () => clearTimeout(timer)
   }, [signals])
 
-  useEffect(() => {
-    if (!openPair) return
+useEffect(() => {
+  if (!openPair || subActive !== true) return
 
     const pairKey = openPair
     let cancelled = false
@@ -144,7 +126,7 @@ useEffect(() => {
       cancelled = true
       clearInterval(interval)
     }
-  }, [openPair])
+}, [openPair, subActive])
 
   function togglePair(pair: string) {
     // Toggle between open/close pair expansion
@@ -166,10 +148,12 @@ useEffect(() => {
   return (
     <div className="relative">
 
-      <main
-        className={`h-[100dvh] bg-black text-white flex flex-col`}
-        style={{ fontSize: "clamp(10px, 0.9vw, 16px)" }}
-      >
+<main
+  className={`h-[100dvh] bg-black text-white flex flex-col ${
+    subActive !== true ? "pointer-events-none" : ""
+  }`}
+  style={{ fontSize: "clamp(10px, 0.9vw, 16px)" }}
+>
 
         {/* TOP BAR */}
         <div
@@ -316,7 +300,10 @@ useEffect(() => {
         </div>
 
       </main>
-
+    <AccessOverlay
+      active={subActive}
+      sessionExists={!!session}
+    />
     </div>
   )
 }
