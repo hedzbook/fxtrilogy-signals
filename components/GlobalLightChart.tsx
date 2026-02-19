@@ -36,26 +36,28 @@ export default function GlobalLightChart({
             container.removeChild(container.firstChild)
         }
 
-        const chart = createChart(container, {
-            layout: {
-                background: { type: ColorType.Solid, color: "#1E1E1E" },
-                textColor: "#888"
-            },
-            grid: {
-                vertLines: { color: "rgba(255,255,255,0.03)" },
-                horzLines: { color: "rgba(255,255,255,0.03)" }
-            },
-            rightPriceScale: {
-                borderColor: "rgba(255,255,255,0.08)"
-            },
-            timeScale: {
-                borderColor: "rgba(255,255,255,0.08)",
-                timeVisible: true,
-                secondsVisible: false,
-                rightOffset: 8,
-                barSpacing: 8
-            }
-        })
+const chart = createChart(container, {
+    width: container.clientWidth,
+    height: container.clientHeight,
+    layout: {
+        background: { type: ColorType.Solid, color: "#1E1E1E" },
+        textColor: "#888"
+    },
+    grid: {
+        vertLines: { color: "rgba(255,255,255,0.03)" },
+        horzLines: { color: "rgba(255,255,255,0.03)" }
+    },
+    rightPriceScale: {
+        borderColor: "rgba(255,255,255,0.08)"
+    },
+    timeScale: {
+        borderColor: "rgba(255,255,255,0.08)",
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 8,
+        barSpacing: 8
+    }
+})
 
         const series = chart.addSeries(CandlestickSeries, {
             upColor: "#22c55e",

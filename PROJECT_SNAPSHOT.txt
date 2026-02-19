@@ -1,0 +1,1770 @@
+﻿
+
+// app\api\signals\route.ts
+// --------------------------------------------------
+
+//app/api/signals/route.ts
+
+import { NextRequest } from "next/server"
+
+export const runtime = "edge"
+
+const GAS_URL =
+  "https://script.google.com/macros/s/AKfycby55ye_dTtWJ-QILNYJIaXWv74_n7n0muh3U--sBl7yowMlp1FzESOokWqeHI75U5_R/exec?key=HEDZ2026"
+
+export async function GET(req: NextRequest) {
+
+  const pair = req.nextUrl.searchParams.get("pair")
+  const stream = req.nextUrl.searchParams.get("stream")
+
+  // =========================================
+  // NORMAL JSON MODE (unchanged behavior)
+  // =========================================
+  if (!stream) {
+
+    try {
+
+      const url = pair
+        ? `${GAS_URL}&pair=${pair}`
+        : GAS_URL
+
+      const res = await fetch(url, { cache: "no-store" })
+      const json = await res.json()
+
+      return Response.json(json)
+
+    } catch {
+
+      return Response.json(
+        { error: "Signal fetch failed" },
+        { status: 500 }
+      )
+    }
+  }
+
+  // ========================================
+  // STREAM MODE (NEW)
+  // =========================================
+  const encoder = new TextEncoder()
+
+  const readable = new ReadableStream({
+
+    async start(controller) {
+
+      let last = ""
+
+      async function push() {
+
+        try {
+
+          const url = pair
+            ? `${GAS_URL}&pair=${pair}`
+            : GAS_URL
+
+          const res = await fetch(url, { cache: "no-store" })
+          const json = await res.json()
+
+          const payload = JSON.stringify(json)
+
+          if (payload !== last) {
+
+            controller.enqueue(
+              encoder.encode(`data: ${payload}\n\n`)
+            )
+
+            last = payload
+          }
+
+        } catch (e) {
+          console.log("stream error", e)
+        }
+      }
+
+      await push()
+
+      const interval = setInterval(push, 2500)
+
+      return () => clearInterval(interval)
+    }
+  })
+
+  return new Response(readable, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive"
+    }
+  })
+}
+
+
+
+// app\layout.tsx
+// --------------------------------------------------
+
+// app/layout.tsx
+
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script"; // ðŸ‘ˆ ADD THIS
+import "./globals.css"
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "FXHEDZ",
+  description: "Live Forex & Crypto Trading Dashboard",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased tracking-tight`}
+      >
+        {/* âœ… Telegram Mini App SDK */}
+        <Script
+          src="https://telegram.org/js/telegram-web-app.js"
+          strategy="beforeInteractive"
+        />
+
+        {children}
+      </body>
+    </html>
+  );
+}
+
+
+
+// app\page.tsx
+// --------------------------------------------------
+
+// app/page.tsx
+
+"use client"
+
+import { useEffect, useState, useMemo } from "react"
+import PairCard from "@/components/PairCard"
+import AccountStrip from "@/components/AccountStrip"
+import VerticalSymbolButton from "@/components/VerticalSymbolButton"
+import PairDetail from "@/components/PairDetail"
+
+const PAIRS = [
+  "XAUUSD",
+  "BTCUSD",
+  "ETHUSD",
+  "EURUSD",
+  "GBPUSD",
+  "USDJPY",
+  "AUDUSD",
+  "USDCHF",
+  "USOIL"
+]
+
+const SIGNAL_API = "/api/signals"
+
+type ViewMode = "MIN" | "MAX"
+
+export default function Page() {
+
+  const [signals, setSignals] = useState<any>({})
+  const [pairData, setPairData] = useState<any>({})
+  const [openPair, setOpenPair] = useState<string | null>(null)  // Track only one expanded pair
+  const [authorized, setAuthorized] = useState(false)
+  const [uiSignals, setUiSignals] = useState<any>({})
+  const [netState, setNetState] = useState("FLAT")
+  const [viewMode, setViewMode] = useState<ViewMode>("MIN")
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const tg = (window as any)?.Telegram?.WebApp
+
+    if (tg && tg.initDataUnsafe?.user?.id) {
+      tg.ready()
+      tg.expand()
+      tg.disableVerticalSwipes()
+      tg.setBackgroundColor("#000000")
+      tg.setHeaderColor("#000000")
+
+      document.documentElement.style.height = "100%"
+      document.body.style.minHeight = "100vh"
+      document.body.style.overscrollBehavior = "none"
+      document.body.style.touchAction = "pan-y"
+
+      setAuthorized(true)
+    } else {
+      setAuthorized(false)
+    }
+  }, [])
+// Dev-only override for browser testing
+useEffect(() => {
+  if (process.env.NODE_ENV === "development") {
+    setAuthorized(true)
+  }
+}, [])
+
+  useEffect(() => {
+    if (!authorized) return
+
+    async function loadSignals() {
+      try {
+        const res = await fetch(SIGNAL_API)
+        const json = await res.json()
+        const incoming = json?.signals ? json.signals : json
+        setLoading(false)
+
+        setSignals((prev: any) => {
+          if (JSON.stringify(prev) === JSON.stringify(incoming)) return prev
+          return incoming
+        })
+      } catch { }
+    }
+
+    loadSignals()
+    const interval = setInterval(loadSignals, 2500)
+    return () => clearInterval(interval)
+  }, [authorized])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setUiSignals((prev: any) => {
+        if (JSON.stringify(prev) === JSON.stringify(signals)) return prev
+        return signals
+      })
+    }, 90)
+
+    return () => clearTimeout(timer)
+  }, [signals])
+
+  useEffect(() => {
+    if (!authorized || !openPair) return
+
+    const pairKey = openPair
+    let cancelled = false
+
+    async function refreshOpenPair() {
+      try {
+        const res = await fetch(`/api/signals?pair=${pairKey}`)
+        const json = await res.json()
+        if (cancelled) return
+
+        setPairData((prev: any) => ({
+          ...prev,
+          [pairKey]: json
+        }))
+      } catch { }
+    }
+
+    refreshOpenPair()
+    const interval = setInterval(refreshOpenPair, 6000)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [authorized, openPair])
+
+  function togglePair(pair: string) {
+    // Toggle between open/close pair expansion
+    if (openPair === pair) {
+      setOpenPair(null) // Collapse the pair
+    } else {
+      setOpenPair(pair) // Expand the specific pair
+    }
+  }
+
+  const pairsData = useMemo(() => {
+    return PAIRS.map((pair) => {
+      const signal = uiSignals?.[pair]
+      const extra = pairData?.[pair] || {}
+      return { pair, signal, orders: extra?.orders || [] }
+    })
+  }, [uiSignals, pairData])
+
+  if (!authorized) {
+    return (
+      <main className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center space-y-2">
+          <div className="text-xl font-bold">FXHEDZ</div>
+          <div className="text-neutral-400 text-[clamp(10px,1.4vw,14px)]">Open via Telegram Bot</div>
+        </div>
+      </main>
+    )
+  }
+
+return (
+<main
+  className="h-[100dvh] bg-black text-white flex flex-col"
+style={{ fontSize: "clamp(10px, 0.9vw, 16px)" }}
+
+>
+
+  {/* TOP BAR */}
+  <div className="shrink-0 h-[clamp(26px,3vh,40px)]">
+    <AccountStrip
+      pairs={pairsData}
+      onStateChange={(state: string) => {
+        setNetState(state)
+      }}
+    />
+  </div>
+
+{/* SCROLL AREA */}
+<div className="flex-1 overflow-hidden relative">
+
+  {openPair ? (
+
+<div
+  className="absolute inset-0 grid"
+  style={{
+    gridTemplateColumns: "clamp(30px, 3.5vw, 46px) 1fr",
+    gridTemplateRows: "1fr"
+  }}
+>
+
+      {/* LEFT RAIL */}
+      <div className="grid"
+        style={{
+          gridTemplateRows: "repeat(9, 1fr)"
+        }}
+      >
+        {PAIRS.map((pair) => (
+          <VerticalSymbolButton
+            key={pair}
+            pair={pair}
+            active={openPair === pair}
+            onClick={() => setOpenPair(pair)}
+          />
+        ))}
+      </div>
+
+      {/* RIGHT DETAIL */}
+      <PairDetail
+        pair={openPair}
+        data={pairData?.[openPair]}
+        signal={uiSignals?.[openPair]}
+        onClose={() => setOpenPair(null)}
+      />
+
+    </div>
+
+  ) : (
+
+    <div
+      className="h-full grid"
+      style={{
+        gridTemplateColumns: "clamp(30px, 3.5vw, 46px) 1fr",
+        gridTemplateRows: "repeat(9, 1fr)",
+        rowGap: "0px"
+      }}
+    >
+      {PAIRS.map((pair) => {
+        const signal = uiSignals?.[pair]
+
+        return (
+          <>
+            <VerticalSymbolButton
+              key={`${pair}_btn`}
+              pair={pair}
+              active={false}
+              onClick={() => setOpenPair(pair)}
+            />
+
+            <PairCard
+              key={`${pair}_card`}
+              pair={pair}
+              direction={signal?.direction}
+              signal={signal}
+              onToggle={() => setOpenPair(pair)}
+            />
+          </>
+        )
+      })}
+    </div>
+
+  )}
+
+</div>
+
+  {/* BOTTOM BAR */}
+  <div className="shrink-0 h-[clamp(26px,3vh,40px)]">
+    <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-3">
+        <div className="flex items-center gap-2 z-10">
+          <div className="w-[clamp(10px,1.5vw,18px)] h-[clamp(10px,1.8vh,22px)] flex flex-col justify-center gap-[2px] cursor-pointer">
+            <div className="h-[clamp(1px,0.2vw,3px)] w-full bg-neutral-400" />
+            <div className="h-[clamp(1px,0.2vw,3px)] w-full bg-neutral-400" />
+            <div className="h-[clamp(1px,0.2vw,3px)] w-full bg-neutral-400" />
+          </div>
+          <div className="text-[clamp(10px,1.8vh,22px)] font-semibold leading-none">
+            FXHEDZ
+          </div>
+        </div>
+
+        <div className="ml-auto text-right z-10 flex flex-col items-end">
+          <div className="text-[clamp(7px,0.9vh,12px)] leading-[11px]">
+            ZEROLOSS COMPOUNDED
+          </div>
+          <div className="text-[clamp(8px,1vh,14px)] text-neutral-500 leading-[11px]">
+            HEDGING SYSTEM
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+)
+}
+
+
+
+// components\AccountStrip.tsx
+// --------------------------------------------------
+
+// components/AccountStrip.tsx
+
+"use client"
+
+import { useEffect } from "react"
+
+export default function AccountStrip({
+    pairs,
+    onStateChange
+}: {
+    pairs: any[]
+    onStateChange?: (state: string, intensity: number, pulse: number) => void
+}) {
+
+    let totalFloating = 0
+    let totalLots = 0
+    let buyVol = 0
+    let sellVol = 0
+
+    pairs.forEach(p => {
+
+        const orders = p.signal?.orders || []
+
+        orders.forEach((pos: any) => {
+            const lot = Number(pos.lots || 0)
+            const pnl = Number(pos.profit || 0)
+
+            totalLots += lot
+            totalFloating += pnl
+
+            if (pos.direction === "BUY") buyVol += lot
+            if (pos.direction === "SELL") sellVol += lot
+        })
+
+    })
+
+    const netState =
+        buyVol === 0 && sellVol === 0
+            ? "FLAT"
+            : buyVol === sellVol
+                ? "HEDGED"
+                : buyVol > sellVol
+                    ? "NET BUY"
+                    : "NET SELL"
+
+    const imbalance = Math.abs(buyVol - sellVol)
+    const totalVol = buyVol + sellVol || 1
+    const intensity = Math.min(1, imbalance / totalVol)
+    const pulse = Math.min(1, Math.abs(totalFloating) / (totalLots || 1))
+
+    useEffect(() => {
+        if (typeof onStateChange === "function") {
+            onStateChange(netState, intensity, pulse)
+        }
+    }, [netState, intensity, pulse])
+
+return (
+  <div className="h-full bg-neutral-900 border-b border-neutral-800 flex items-center px-3">
+
+    <div className="flex-1 text-left text-[clamp(9px,1.8vw,16px)]
+">
+      <span className="text-neutral-400">LOTS: </span>
+      <span className="font-semibold">{totalLots.toFixed(2)}</span>
+    </div>
+
+    <div className="flex-1 text-center text-[clamp(9px,1.8vw,16px)]
+">
+      <span className="text-neutral-400">~PnL </span>
+      <span className={totalFloating >= 0 ? "text-green-400" : "text-red-400"}>
+        {totalFloating.toFixed(2)}
+      </span>
+    </div>
+
+    <div className="flex-1 text-right text-[clamp(9px,1.8vw,16px)] font-semibold text-sky-400">
+      {netState}
+    </div>
+
+  </div>
+)
+
+}
+
+
+
+// components\DashboardControlBar.tsx
+// --------------------------------------------------
+
+// components/DashboardControlBar.tsx
+
+"use client"
+
+import React from "react"
+
+type ViewMode = "MIN" | "MID" | "MAX"
+
+export default function DashboardControlBar({
+  viewMode,
+  onChangeView,
+  onMenu
+}: {
+  viewMode: ViewMode
+  onChangeView: (mode: ViewMode) => void
+  onMenu?: () => void
+}) {
+
+  function Btn({
+    label,
+    active,
+    onClick
+  }: {
+    label: string
+    active?: boolean
+    onClick: () => void
+  }) {
+    return (
+      <button
+        onClick={onClick}
+        className={`px-4 py-2 text-[clamp(10px,1.4vw,14px)] font-semibold transition-all duration-200
+        ${active
+            ? "text-white bg-neutral-800"
+            : "text-neutral-400 hover:text-neutral-200"
+          }`}
+      >
+        {label}
+      </button>
+    )
+  }
+
+  return (
+    <div
+      className="fixed bottom-0 left-0 w-full z-50
+                 bg-gradient-to-t from-black to-neutral-900
+                 border-t border-neutral-800
+                 rounded-t-2xl
+                 backdrop-blur-xl"
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom)"
+      }}
+    >
+      <div className="flex items-center justify-between px-4 py-3">
+
+        {/* LEFT SIDE â€” VIEW CONTROLS */}
+        <div className="flex items-center gap-2">
+
+          <Btn
+            label="MIN"
+            active={viewMode === "MIN"}
+            onClick={() => onChangeView("MIN")}
+          />
+
+          <Btn
+            label="MID"
+            active={viewMode === "MID"}
+            onClick={() => onChangeView("MID")}
+          />
+
+          <Btn
+            label="MAX"
+            active={viewMode === "MAX"}
+            onClick={() => onChangeView("MAX")}
+          />
+
+        </div>
+
+        {/* RIGHT SIDE â€” MENU */}
+        <button
+          onClick={onMenu}
+          className="w-9 h-9 flex items-center justify-center
+                     rounded-lg bg-neutral-800
+                     text-neutral-300 hover:text-white
+                     transition-all duration-200"
+        >
+          â˜°
+        </button>
+
+      </div>
+    </div>
+  )
+}
+
+
+
+// components\GlobalLightChart.tsx
+// --------------------------------------------------
+
+// components/GlobalLightChart.tsx
+
+"use client"
+
+import { useEffect, useRef } from "react"
+import {
+    createChart,
+    ColorType,
+    CandlestickSeries
+} from "lightweight-charts"
+
+export default function GlobalLightChart({
+    mountId,
+    signal
+}: {
+    mountId?: string
+    signal?: any
+}) {
+
+    const chartRef = useRef<any>(null)
+    const candleSeriesRef = useRef<any>(null)
+    const dynamicLinesRef = useRef<any[]>([])
+    const historyLoadedRef = useRef(false)
+
+    // ==========================================
+    // CREATE CHART
+    // ==========================================
+    useEffect(() => {
+
+        if (!mountId) return
+
+        const container = document.getElementById(mountId)
+        if (!container) return
+
+        while (container.firstChild) {
+            container.removeChild(container.firstChild)
+        }
+
+const chart = createChart(container, {
+    width: container.clientWidth,
+    height: container.clientHeight,
+    layout: {
+        background: { type: ColorType.Solid, color: "#1E1E1E" },
+        textColor: "#888"
+    },
+    grid: {
+        vertLines: { color: "rgba(255,255,255,0.03)" },
+        horzLines: { color: "rgba(255,255,255,0.03)" }
+    },
+    rightPriceScale: {
+        borderColor: "rgba(255,255,255,0.08)"
+    },
+    timeScale: {
+        borderColor: "rgba(255,255,255,0.08)",
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 8,
+        barSpacing: 8
+    }
+})
+
+        const series = chart.addSeries(CandlestickSeries, {
+            upColor: "#22c55e",
+            downColor: "#ef4444",
+            borderUpColor: "#22c55e",
+            borderDownColor: "#ef4444",
+            wickUpColor: "#22c55e",
+            wickDownColor: "#ef4444"
+        })
+
+        chartRef.current = chart
+        candleSeriesRef.current = series
+        historyLoadedRef.current = false
+
+        const resizeObserver = new ResizeObserver(() => {
+            chart.applyOptions({
+                width: container.clientWidth,
+                height: container.clientHeight
+            })
+        })
+
+        resizeObserver.observe(container)
+
+        return () => {
+            resizeObserver.disconnect()
+            chart.remove()
+        }
+
+    }, [mountId])
+
+    // ==========================================
+    // CANDLE STREAM (IMPORTANT â€” RESTORED)
+    // ==========================================
+    useEffect(() => {
+
+        const series = candleSeriesRef.current
+        if (!series) return
+        if (!signal?.candles) return
+
+        const data = signal.candles.map((c: any) => ({
+            time: Number(c.time),
+            open: Number(c.open),
+            high: Number(c.high),
+            low: Number(c.low),
+            close: Number(c.close)
+        }))
+
+        if (!data.length) return
+
+        if (!historyLoadedRef.current) {
+            series.setData(data)
+            historyLoadedRef.current = true
+            return
+        }
+
+        const last = data[data.length - 1]
+        series.update(last)
+
+    }, [signal?.candles])
+
+    // ==========================================
+    // OVERLAY ENGINE
+    // ==========================================
+    useEffect(() => {
+
+        const candleSeries = candleSeriesRef.current
+        if (!candleSeries || !signal) return
+
+        dynamicLinesRef.current.forEach((l: any) => {
+            candleSeries.removePriceLine(l)
+        })
+        dynamicLinesRef.current = []
+
+        let orders = signal?.orders || []
+
+        if (!orders.length && signal?.direction && signal?.entry) {
+            orders = [{
+                label: signal.direction === "BUY" ? "B1" : "S1",
+                entry: signal.entry,
+                direction: signal.direction
+            }]
+        }
+
+        if (!orders.length) return
+
+        const isHedged = signal?.direction === "HEDGED"
+
+        orders.forEach((o: any, index: number) => {
+
+            const entry = Number(o.entry)
+            if (!entry) return
+
+            const isLatest = index === orders.length - 1
+            const isHedged = signal?.direction === "HEDGED"
+
+            const activeColor =
+                o.direction === "BUY"
+                    ? "#22c55e"
+                    : "#ef4444"
+
+            // Better muted colors (visible but secondary)
+            const mutedColor =
+                o.direction === "BUY"
+                    ? "rgba(34,197,94,0.45)"
+                    : "rgba(239,68,68,0.45)"
+
+            const color =
+                isLatest && !isHedged
+                    ? activeColor
+                    : mutedColor
+
+            const entryLine = candleSeries.createPriceLine({
+                price: entry,
+                color,
+                lineWidth: isLatest && !isHedged ? 2 : 2, // keep thickness consistent
+                axisLabelVisible: isLatest && !isHedged,
+                title: isLatest && !isHedged ? (o.label || "") : ""
+            })
+
+            dynamicLinesRef.current.push(entryLine)
+
+            // -------------------------------
+            // STOP IF HEDGED
+            // -------------------------------
+            if (isHedged) return
+
+            // Only latest non-hedged gets SL/TP
+            if (!isLatest) return
+
+            const sl = Number(signal?.sl)
+            const tp = Number(signal?.tp)
+
+            if (sl) {
+                const hedgeLabel =
+                    o.direction === "BUY"
+                        ? "SS"
+                        : "BS"
+
+                const slLine = candleSeries.createPriceLine({
+                    price: sl,
+                    color: "#ef4444",
+                    lineWidth: 1,
+                    title: hedgeLabel
+                })
+
+                dynamicLinesRef.current.push(slLine)
+            }
+
+            if (tp) {
+                const tpLine = candleSeries.createPriceLine({
+                    price: tp,
+                    color: "#22c55e",
+                    lineWidth: 1,
+                    title: "TP"
+                })
+
+                dynamicLinesRef.current.push(tpLine)
+            }
+
+        })
+
+    }, [signal])
+
+    return null
+}
+
+
+
+// components\PairCard.tsx
+// --------------------------------------------------
+
+// components/PairCard.tsx
+
+"use client"
+
+import React, { useState, useEffect } from "react"
+import GlobalLightChart from "./GlobalLightChart"
+
+type TradeDirection = "BUY" | "SELL" | "HEDGED" | "EXIT" | "--"
+type ViewMode = "MIN" | "MAX"
+
+type Props = {
+  pair: string
+  open?: boolean
+  viewMode?: ViewMode
+  direction?: TradeDirection
+  signal?: any
+  history?: any[]
+  orders?: any[]
+  performance?: any
+  notes?: string
+  onToggle: () => void
+}
+
+function PairCard({
+  pair,
+  open,
+  viewMode = "MIN",
+  onToggle,
+  direction,
+  signal,
+  history,
+  orders,
+  performance,
+  notes
+}: Props) {
+
+  const dir: TradeDirection = direction ?? "--"
+  const [liveDir, setLiveDir] = useState<TradeDirection>(dir)
+  const [tab, setTab] = useState<"market" | "news" | "history" | "performance">("market")
+  const [liveOrders, setLiveOrders] = useState<any[]>(orders ?? [])
+  const [pnlCache, setPnlCache] = useState<Record<string, number>>({})
+  const expanded = !!open
+
+  useEffect(() => setLiveDir(dir), [dir])
+  useEffect(() => setLiveOrders(orders ?? []), [orders])
+  useEffect(() => { if (expanded) setTab("market") }, [expanded])
+useEffect(() => {
+  const newCache: Record<string, number> = {}
+  liveOrders.forEach(o => {
+    const key = o.id || `${o.direction}_${o.entry}_${o.time}`
+    newCache[key] = Number(o.profit ?? 0)
+  })
+  setPnlCache(newCache)
+}, [liveOrders])
+
+  return (
+<div
+  className={`
+    text-[clamp(10px,1.1vw,20px)]
+    relative
+    transition-all duration-300
+    border border-neutral-800 rounded-none
+    overflow-hidden flex flex-col
+    ${viewMode === "MIN" && !expanded ? "justify-center" : ""}
+    flex-none
+    ${expanded ? "z-20 shadow-xl" : "z-0"}
+  `}
+>
+
+{/* ================= HEADER ================== */}
+<div
+  className="
+    flex-shrink-0
+    flex flex-col
+    justify-center
+    px-3
+py-[clamp(2px,0.6vh,6px)]
+    cursor-pointer
+  "
+  onClick={(e) => {
+    e.stopPropagation()
+    onToggle()
+  }}
+>
+
+  {signal && (
+    <div className="flex flex-col w-full">
+
+      {/* ROW 1 â€” PAIR + DIRECTION */}
+      <div className="flex justify-between items-center">
+        <div className="font-semibold text-[clamp(10px,1.8vh,22px)] leading-none">
+          {pair}
+        </div>
+
+        <div className={`font-bold text-[clamp(10px,1.8vh,22px)] ${
+          liveDir === "BUY"
+            ? "text-green-400"
+            : liveDir === "SELL"
+              ? "text-red-400"
+              : liveDir === "HEDGED"
+                ? "text-sky-400"
+                : "text-neutral-500"
+        }`}>
+          {liveDir}
+        </div>
+      </div>
+
+{/* ROW 2 â€” LOTS + B/S COUNT */}
+<div className="mt-[clamp(1px,0.4vw,6px)] flex justify-between items-center text-[clamp(8px,1.3vh,18px)] leading-none">
+        <div className="text-neutral-400">
+          {signal?.lots ?? "-"} LOTS
+        </div>
+
+        <div className="font-semibold">
+          <span className="text-green-400">{signal?.buys ?? 0}B</span>
+          <span className="text-neutral-500 px-1">/</span>
+          <span className="text-red-400">{signal?.sells ?? 0}S</span>
+        </div>
+      </div>
+
+      {/* ROW 3 â€” TRADE BAR */}
+<div className="mt-[clamp(1px,0.8vw,10px)]">
+  <InlineTradeStrip
+    signal={signal}
+    direction={liveDir}
+  />
+</div>
+
+    </div>
+  )}
+</div>
+
+      {/* ================= EXPANDED CONTENT ================ */}
+      {expanded && (
+        <div className="border-t border-neutral-800 flex flex-col flex-1 min-h-0 overflow-y-auto">
+
+          {/* TABS */}
+          <div className="flex w-full border-b border-neutral-800 text-[clamp(10px,1.4vw,14px)]">
+            <TabBtn label="Market" active={tab === "market"} onClick={() => setTab("market")} />
+            <TabBtn label="News" active={tab === "news"} onClick={() => setTab("news")} />
+            <TabBtn label="History" active={tab === "history"} onClick={() => setTab("history")} />
+            <TabBtn label="Performance" active={tab === "performance"} onClick={() => setTab("performance")} />
+          </div>
+
+          <div className="p-3 space-y-3 flex flex-col h-full">
+
+            {/* ================= MARKET ================= */}
+            {tab === "market" && (
+              <>
+                <div
+                  id={`chart_mount_${pair}`}
+                  className="w-full h-[35vh] min-h-[180px] max-h-[320px]"
+                />
+                <GlobalLightChart
+                  mountId={`chart_mount_${pair}`}
+                  signal={signal}
+                />
+
+                <div>
+                  <div className="text-[clamp(10px,1.4vw,14px)] text-neutral-400">Latest Signal</div>
+                  <div className="font-bold text-lg">
+                    {signal?.direction || "--"} {signal?.entry || ""}
+                  </div>
+                  <div className="text-[clamp(10px,1.4vw,14px)] text-neutral-400">
+                    SL {signal?.sl || "--"} Â· TP {signal?.tp || "--"}
+                  </div>
+                </div>
+
+                <div className="bg-neutral-800 rounded-lg p-2 text-[clamp(10px,1.4vw,14px)] text-neutral-300">
+                  <div className="text-[clamp(10px,1.4vw,14px)] text-neutral-400 mb-2">Active Orders</div>
+
+                  <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+                    {liveOrders?.length ? liveOrders.map((o, i) => {
+
+                      const key = o.id || `${o.direction}_${o.entry}_${o.time}`
+                      const pnl = Number(o.profit ?? 0)
+                      const prev = pnlCache[key] ?? pnl
+
+                      const pnlColor =
+                        pnl > 0
+                          ? "text-green-400"
+                          : pnl < 0
+                            ? "text-red-400"
+                            : "text-neutral-400"
+
+                      let pulseClass = ""
+                      if (pnl > prev) pulseClass = "ring-1 ring-green-400/40"
+                      if (pnl < prev) pulseClass = "ring-1 ring-red-400/40"
+
+                      return (
+                        <div
+                          key={key}
+                          className={`bg-neutral-900 px-2 py-2 min-h-[38px] rounded-md text-xs flex justify-between ...`}
+>
+                          <div>
+                            <div className={`font-semibold ${o.direction === "BUY"
+                              ? "text-green-400"
+                              : "text-red-400"
+                              }`}>
+                              {o.direction}
+                            </div>
+                            <div className="text-neutral-400">
+                              ENTRY {o.entry}
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <div className="text-neutral-400">
+                              {o.lots}
+                            </div>
+                            <div className={pnlColor}>
+                              {pnl.toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      )
+
+                    }) : (
+                      <div className="text-neutral-500 text-[clamp(10px,1.4vw,14px)]">
+                        No open orders
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ================= NEWS ================= */}
+{tab === "news" && (
+  <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
+
+    <div className="shrink-0 text-[clamp(10px,1.4vw,14px)] text-neutral-400 mb-2">
+      Market Commentary
+    </div>
+
+    <div className="flex-1 min-h-0 overflow-y-auto bg-neutral-900 border border-neutral-800 p-[clamp(10px,1.4vw,16px)] text-[clamp(10px,1.4vw,14px)]">
+      {notes || "Coming Soon"}
+    </div>
+
+  </div>
+)}
+
+            {/* ================= HISTORY ================= */}
+{tab === "history" && (
+  <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
+
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
+
+      {history?.length ? history.map((h: any, i: number) => (
+        <div
+          key={i}
+          className="bg-neutral-900 border border-neutral-800 p-[clamp(8px,1vw,14px)] flex justify-between text-[clamp(10px,1.4vw,14px)]"
+        >
+          <div>
+            <div className={h.direction === "BUY" ? "text-green-400" : "text-red-400"}>
+              {h.direction}
+            </div>
+            <div className="text-xs text-neutral-400">
+              {h.entry} â†’ {h.exit}
+            </div>
+          </div>
+          <div className={h.pnl >= 0 ? "text-green-400" : "text-red-400"}>
+            {h.pnl}
+          </div>
+        </div>
+      )) : (
+        <div className="text-neutral-500 text-[clamp(10px,1.4vw,14px)]">
+          No history yet
+        </div>
+      )}
+
+    </div>
+
+  </div>
+)}
+
+            {/* ================= PERFORMANCE ================= */}
+{tab === "performance" && (
+  <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
+
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-[clamp(8px,1vh,16px)] pr-1">
+
+      {/* TOP METRICS */}
+      <div className="grid grid-cols-2 gap-[clamp(6px,1vw,14px)] text-[clamp(10px,1.4vw,14px)]">
+        <Metric
+          label="Win Rate"
+          value={
+            performance?.winRate !== undefined
+              ? performance.winRate + "%"
+              : "--"
+          }
+        />
+        <Metric
+          label="Profit Factor"
+          value={performance?.profitFactor ?? "--"}
+        />
+      </div>
+
+      {/* STAT LIST */}
+      <div className="space-y-[clamp(6px,1vh,12px)] text-[clamp(10px,1.4vw,14px)]">
+        <Stat label="Total Trades" value={performance?.trades} />
+        <Stat label="Wins" value={performance?.wins} />
+        <Stat label="Losses" value={performance?.losses} />
+        <Stat label="Total PnL" value={performance?.pnlTotal} />
+      </div>
+
+    </div>
+
+  </div>
+)}
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  )
+}
+
+/* ====================================================== */
+
+function TabBtn({ label, active, onClick }: any) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick() }}
+      className={`flex-1 py-3 text-center transition-all duration-200 ${active
+        ? "text-white border-b-2 border-white bg-neutral-900"
+        : "text-neutral-500 hover:text-neutral-300"
+        }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+function Stat({ label, value }: any) {
+  return (
+    <div className="flex justify-between bg-neutral-800 border border-neutral-700 p-[clamp(8px,1vw,14px)]">
+      <span className="text-neutral-400">{label}</span>
+      <span className="font-semibold">{value ?? "--"}</span>
+    </div>
+  )
+}
+
+function Metric({ label, value }: any) {
+  return (
+    <div className="bg-neutral-800 border border-neutral-700 p-[clamp(10px,1.4vw,18px)] text-center">
+      <div className="text-neutral-400 text-[clamp(9px,1.2vw,12px)]">{label}</div>
+      <div className="text-[clamp(12px,1.8vw,20px)] font-semibold">{value ?? "--"}</div>
+    </div>
+  )
+}
+
+/* =====================================================
+   INLINE STRIP (MIN MODE)
+======================================================= */
+
+function InlineTradeStrip({ signal, direction }: any) {
+  if (!signal?.entry || direction === "EXIT") return null
+
+  const sl = Number(signal?.sl)
+  const tp = Number(signal?.tp)
+  const entry = Number(signal?.entry)
+  const price = Number(signal?.price || entry)
+
+  if (!sl || !tp) return null
+
+  let pricePercent = 50
+
+  if (direction === "BUY") {
+    const leftRange = Math.abs(entry - sl)
+    const rightRange = Math.abs(tp - entry)
+
+    if (price < entry && leftRange > 0)
+      pricePercent = 50 - ((entry - price) / leftRange) * 50
+
+    if (price > entry && rightRange > 0)
+      pricePercent = 50 + ((price - entry) / rightRange) * 50
+  }
+
+  if (direction === "SELL") {
+    const leftRange = Math.abs(tp - entry)
+    const rightRange = Math.abs(entry - sl)
+
+    if (price > entry && rightRange > 0)
+      pricePercent = 50 - ((price - entry) / rightRange) * 50
+
+    if (price < entry && leftRange > 0)
+      pricePercent = 50 + ((entry - price) / leftRange) * 50
+  }
+
+  pricePercent = Math.max(0.9, Math.min(99.2, pricePercent))
+
+  const isTPside =
+    direction === "BUY"
+      ? price >= entry
+      : price <= entry
+
+  return (
+    <div className="flex flex-col w-full gap-[clamp(1px,0.5vw,6px)]">
+
+      {/* BAR */}
+      <div className="relative w-full h-[clamp(2px,0.35vw,6px)]">
+
+        <div className="absolute inset-0 bg-neutral-800 rounded-full" />
+
+        {/* left half */}
+        <div className="absolute left-0 h-[clamp(2px,0.35vw,6px)] w-1/2 bg-red-500/70" />
+
+        {/* right half */}
+        <div className="absolute right-0 h-[clamp(2px,0.35vw,6px)] w-1/2 bg-green-500/70" />
+
+        {/* SL dot */}
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full border border-neutral-500 bg-black" />
+
+{/* ENTRY dot */}
+<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full bg-neutral-400" />
+
+        {/* TP dot */}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full border border-neutral-500 bg-black" />
+
+{/* LIVE DOT */}
+<div
+  className="absolute top-1/2"
+  style={{
+    left: `${pricePercent}%`,
+    transform: "translate(-50%, -50%)",
+    transition: "left 300ms ease"
+  }}
+>
+
+  {/* OUTER PULSE RING â€” MODERATE */}
+  <div
+    className={`
+      absolute
+      w-[clamp(12px,1.8vw,36px)]
+      h-[clamp(12px,1.8vw,36px)]
+      -translate-x-1/2
+      -translate-y-1/2
+      left-1/2
+      top-1/2
+      rounded-full
+      ${isTPside ? "bg-green-400/35" : "bg-red-400/35"}
+      animate-ping
+    `}
+    style={{
+      animationDuration: "0.85s"
+    }}
+  />
+
+  {/* STATIC SOFT HALO */}
+  <div
+    className={`
+      absolute
+      w-[clamp(9px,1.4vw,28px)]
+      h-[clamp(9px,1.4vw,28px)]
+      -translate-x-1/2
+      -translate-y-1/2
+      left-1/2
+      top-1/2
+      rounded-full
+      blur-lg
+      ${isTPside ? "bg-green-500/45" : "bg-red-500/45"}
+    `}
+  />
+
+  {/* CORE DOT â€” EXACT SIZE YOU WANT */}
+  <div
+    className={`
+      relative
+      w-[clamp(6px,1.3vw,28px)]
+      h-[clamp(6px,1.3vw,28px)]
+      rounded-full
+      ${isTPside ? "bg-green-400" : "bg-red-400"}
+    `}
+  />
+
+</div>
+
+      </div>
+
+      {/* PRICE ROW */}
+      <div className="flex justify-between text-[clamp(8px,2.4vw,16px)] text-neutral-400">
+        <span>{sl}</span>
+        <span>{entry}</span>
+        <span>{tp}</span>
+      </div>
+
+    </div>
+  )
+}
+/* ======================================================
+   TRADE BAR (MID / MAX MODE)
+====================================================== */
+
+function TradeBar({
+  signal,
+  direction
+}: {
+  signal: any
+  direction?: "BUY" | "SELL" | "HEDGED" | "EXIT" | "--"
+}) {
+
+  const sl = Number(signal?.sl)
+  const tp = Number(signal?.tp)
+  const entry = Number(signal?.entry)
+  const price = Number(signal?.price || entry)
+
+  if (direction === "EXIT") return null
+  if (!sl || !tp || !entry) return null
+
+  const entryPercent = 50
+  let pricePercent = 50
+
+  if (direction === "BUY") {
+    const leftRange = Math.abs(entry - sl)
+    const rightRange = Math.abs(tp - entry)
+
+    if (price < entry && leftRange > 0)
+      pricePercent = 50 - ((entry - price) / leftRange) * 50
+
+    if (price > entry && rightRange > 0)
+      pricePercent = 50 + ((price - entry) / rightRange) * 50
+  }
+
+  if (direction === "SELL") {
+    const leftRange = Math.abs(tp - entry)
+    const rightRange = Math.abs(entry - sl)
+
+    if (price > entry && rightRange > 0)
+      pricePercent = 50 - ((price - entry) / rightRange) * 50
+
+    if (price < entry && leftRange > 0)
+      pricePercent = 50 + ((entry - price) / leftRange) * 50
+  }
+
+  pricePercent = Math.max(0.9, Math.min(99.2, pricePercent))
+
+  const isTPside =
+    direction === "BUY"
+      ? price >= entry
+      : price <= entry
+
+  return (
+    <div className="mt-3 select-none">
+
+      <div className="relative h-3 text-[clamp(12px,1vw,16px)] text-neutral-400 mb-1">
+        <span className="absolute left-0">SL / HEDZ</span>
+        <span
+          className="absolute"
+          style={{
+            left: `${entryPercent}%`,
+            transform: "translateX(-50%)"
+          }}
+        >
+          ENTRY
+        </span>
+        <span className="absolute right-0">TP</span>
+      </div>
+
+      <div className="relative h-6 flex items-center overflow-visible">
+
+        <div
+          className="absolute h-[clamp(2px,0.35vw,6px)]"
+          style={{
+            width: `${entryPercent}%`,
+            background:
+              "linear-gradient(90deg, rgba(248,113,113,0.8), rgba(239,68,68,0.05))"
+          }}
+        />
+
+        <div
+          className="absolute h-[clamp(2px,0.35vw,6px)]"
+          style={{
+            left: `${entryPercent}%`,
+            width: `${100 - entryPercent}%`,
+            background:
+              "linear-gradient(90deg, rgba(34,197,94,0.05), rgba(74,222,128,0.8))"
+          }}
+        />
+
+        <div className="absolute left-0 w-3 h-3 rounded-full border border-neutral-400" />
+        <div
+          className="absolute w-3 h-3 rounded-full border border-neutral-400"
+          style={{
+            left: `${entryPercent}%`,
+            transform: "translateX(-50%)"
+          }}
+        />
+        <div className="absolute right-0 w-3 h-3 rounded-full border border-neutral-400" />
+
+        <div
+          className="absolute"
+          style={{
+            left: `${pricePercent}%`,
+            transform: "translateX(-50%)",
+            transition: "left 380ms cubic-bezier(0.22,1,0.36,1)"
+          }}
+        >
+          <div
+            className={`absolute -inset-2 rounded-full blur-md ${isTPside ? "bg-green-500/30" : "bg-red-500/30"
+              }`}
+          />
+          <div
+            className={`w-3 h-3 rounded-full ${isTPside ? "bg-green-400" : "bg-red-400"
+              }`}
+          />
+        </div>
+
+      </div>
+
+      <div className="flex justify-between text-[11px] text-neutral-400 mt-1">
+        <span>{sl}</span>
+        <span>{entry}</span>
+        <span>{tp}</span>
+      </div>
+
+    </div>
+  )
+}
+
+export default React.memo(PairCard)
+
+
+
+// components\PairDetail.tsx
+// --------------------------------------------------
+
+// components/PairDetail.tsx
+
+"use client"
+
+import { useState } from "react"
+import GlobalLightChart from "./GlobalLightChart"
+
+type Props = {
+    pair: string
+    signal: any
+    data: any
+    onClose: () => void
+}
+
+export default function PairDetail({
+    pair,
+    signal,
+    data,
+    onClose
+}: Props) {
+
+    const [tab, setTab] = useState<"market" | "news" | "history" | "performance">("market")
+
+    return (
+        <div className="flex flex-col h-full bg-black min-h-0">
+
+            {/* HEADER */}
+            <div className="shrink-0 flex items-center justify-between px-4 py-[clamp(6px,1vh,10px)] border-b border-neutral-800">
+                <div className="font-semibold text-[clamp(12px,1.8vw,18px)] leading-none">
+                    {pair}
+                </div>
+                <button
+                    onClick={onClose}
+                    className="text-[clamp(10px,1.6vw,14px)] text-neutral-400 hover:text-white leading-none"
+                >
+                    CLOSE
+                </button>
+            </div>
+
+            {/* CHART (FIXED HEIGHT) */}
+            <div className="shrink-0 h-[clamp(180px,35vh,380px)]">
+                <div
+                    id={`chart_mount_${pair}`}
+                    className="w-full h-full"
+                />
+                <GlobalLightChart
+                    mountId={`chart_mount_${pair}`}
+                    signal={signal}
+                />
+            </div>
+
+            {/* TABS (FIXED) */}
+            <div className="shrink-0 flex border-b border-neutral-800 text-[clamp(10px,1.4vw,14px)]">
+                <Tab label="Market" active={tab === "market"} onClick={() => setTab("market")} />
+                <Tab label="News" active={tab === "news"} onClick={() => setTab("news")} />
+                <Tab label="History" active={tab === "history"} onClick={() => setTab("history")} />
+                <Tab label="Statistics" active={tab === "performance"} onClick={() => setTab("performance")} />
+            </div>
+
+            {/* CONTENT AREA â€” ONLY THIS SCROLLS */}
+            <div className="flex-1 flex flex-col min-h-0">
+
+                {tab === "market" && (
+                    <div className="flex flex-col flex-1 min-h-0 gap-[clamp(8px,1vh,16px)] p-[clamp(8px,1.2vw,16px)]">
+
+
+                        <div>
+                            <div className="text-[clamp(10px,1.4vw,14px)] text-neutral-400">Latest Signal</div>
+                            <div className="font-semibold text-[clamp(12px,1.8vw,18px)] leading-tight">
+                                {signal?.direction || "--"} {signal?.entry || ""}
+                            </div>
+                            <div className="text-[clamp(10px,1.4vw,14px)] text-neutral-400">
+                                SL {signal?.sl || "--"} Â· TP {signal?.tp || "--"}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col flex-1 min-h-0 bg-neutral-900 border border-neutral-800 p-[clamp(8px,1vw,14px)] text-[clamp(10px,1.4vw,15px)]">
+
+                            <div className="shrink-0 text-neutral-400 mb-2">
+                                Active Orders
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+
+                                {data?.orders?.length ? data.orders.map((o: any, i: number) => (
+                                    <div
+                                        key={i}
+                                        className="flex justify-between bg-neutral-800 p-2"
+                                    >
+                                        <div>
+                                            <div className={o.direction === "BUY" ? "text-green-400" : "text-red-400"}>
+                                                {o.direction}
+                                            </div>
+                                            <div className="text-neutral-400 text-xs">
+                                                ENTRY {o.entry}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div>{o.lots}</div>
+                                            <div className={Number(o.profit) >= 0 ? "text-green-400" : "text-red-400"}>
+                                                {Number(o.profit).toFixed(2)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <div className="text-neutral-500">
+                                        No open orders
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                    </div>
+                )}
+
+                {tab === "news" && (
+                    <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
+
+                        <div className="shrink-0 text-neutral-400 mb-2">
+                            Market Commentary
+                        </div>
+
+                        <div className="flex-1 min-h-0 overflow-y-auto bg-neutral-900 border border-neutral-800 p-[clamp(10px,1.4vw,16px)] text-[clamp(10px,1.4vw,14px)] pr-1">
+                            {data?.notes || "Coming Soon"}
+                        </div>
+
+                    </div>
+                )}
+
+                {tab === "history" && (
+                    <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
+
+                        <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
+
+                            {data?.history?.length ? data.history.map((h: any, i: number) => (
+                                <div
+                                    key={i}
+                                    className="bg-neutral-900 border border-neutral-800 p-[clamp(8px,1vw,14px)] flex justify-between text-[clamp(10px,1.4vw,14px)]"
+                                >
+                                    <div>
+                                        <div className={h.direction === "BUY" ? "text-green-400" : "text-red-400"}>
+                                            {h.direction}
+                                        </div>
+                                        <div className="text-xs text-neutral-400">
+                                            {h.entry} â†’ {h.exit}
+                                        </div>
+                                    </div>
+                                    <div className={h.pnl >= 0 ? "text-green-400" : "text-red-400"}>
+                                        {h.pnl}
+                                    </div>
+                                </div>
+                            )) : (
+                                <div className="text-neutral-500 text-[clamp(10px,1.4vw,14px)]">
+                                    No history yet
+                                </div>
+                            )}
+
+                        </div>
+
+                    </div>
+                )}
+
+                {tab === "performance" && (
+                    <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
+
+                        <div className="flex-1 min-h-0 overflow-y-auto space-y-[clamp(8px,1vh,16px)] pr-1">
+
+                            <div className="grid grid-cols-2 gap-[clamp(6px,1vw,14px)] text-[clamp(10px,1.4vw,14px)]">
+                                <Metric
+                                    label="Win Rate"
+                                    value={
+                                        data?.performance?.winRate !== undefined
+                                            ? data.performance.winRate + "%"
+                                            : "--"
+                                    }
+                                />
+                                <Metric
+                                    label="Profit Factor"
+                                    value={data?.performance?.profitFactor ?? "--"}
+                                />
+                            </div>
+
+                            <div className="space-y-[clamp(6px,1vh,12px)] text-[clamp(10px,1.4vw,14px)]">
+                                <Stat label="Total Trades" value={data?.performance?.trades} />
+                                <Stat label="Wins" value={data?.performance?.wins} />
+                                <Stat label="Losses" value={data?.performance?.losses} />
+                                <Stat label="Total PnL" value={data?.performance?.pnlTotal} />
+                            </div>
+
+                        </div>
+
+                    </div>
+                )}
+            </div>
+
+        </div>
+    )
+}
+
+function Tab({ label, active, onClick }: any) {
+    return (
+        <button
+            onClick={onClick}
+            className={`
+        flex-1
+        py-[clamp(6px,1vh,12px)]
+        text-[clamp(10px,1.6vw,16px)]
+        leading-none
+        transition-all
+        ${active
+                    ? "text-white border-b-2 border-white bg-neutral-900"
+                    : "text-neutral-500 hover:text-neutral-300"}
+      `}
+        >
+            {label.toUpperCase()}
+        </button>
+    )
+}
+
+function Stat({ label, value }: any) {
+    return (
+        <div className="flex justify-between bg-neutral-800 border border-neutral-700 p-[clamp(8px,1vw,14px)]">
+            <span className="text-neutral-400">{label}</span>
+            <span className="font-semibold">{value ?? "--"}</span>
+        </div>
+    )
+}
+
+function Metric({ label, value }: any) {
+    return (
+        <div className="bg-neutral-800 border border-neutral-700 p-[clamp(10px,1.4vw,18px)] text-center">
+            <div className="text-neutral-400 text-[clamp(9px,1.2vw,12px)]">{label}</div>
+            <div className="text-[clamp(12px,1.8vw,20px)] font-semibold">{value ?? "--"}</div>
+        </div>
+    )
+}
+
+
+
+
+
+// components\VerticalSymbolButton.tsx
+// --------------------------------------------------
+
+// components/VerticalSymbolButton.tsx
+
+"use client"
+
+type Props = {
+  pair: string
+  active?: boolean
+  onClick: () => void
+}
+
+export default function VerticalSymbolButton({
+  pair,
+  active = false,
+  onClick
+}: Props) {
+
+  const letters = pair.split("")
+
+  return (
+    <button
+      onClick={onClick}
+      className={`
+        h-full w-full
+        flex flex-col items-center justify-center
+        border border-neutral-800
+        text-[clamp(7px,0.9vh,12px)]
+        tracking-widest
+        rounded-none
+        ${active
+          ? "bg-neutral-900 text-white border-sky-400"
+          : "bg-neutral-950 text-neutral-500 hover:bg-neutral-900"
+        }
+      `}
+    >
+      {letters.map((l, i) => (
+        <span
+          key={i}
+          className="leading-none"
+        >
+          {l}
+        </span>
+      ))}
+    </button>
+  )
+}
+
+

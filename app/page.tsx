@@ -5,6 +5,8 @@
 import { useEffect, useState, useMemo } from "react"
 import PairCard from "@/components/PairCard"
 import AccountStrip from "@/components/AccountStrip"
+import VerticalSymbolButton from "@/components/VerticalSymbolButton"
+import PairDetail from "@/components/PairDetail"
 
 const PAIRS = [
   "XAUUSD",
@@ -143,7 +145,7 @@ useEffect(() => {
       <main className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center space-y-2">
           <div className="text-xl font-bold">FXHEDZ</div>
-          <div className="text-neutral-400 text-sm">Open via Telegram Bot</div>
+          <div className="text-neutral-400 text-[clamp(10px,1.4vw,14px)]">Open via Telegram Bot</div>
         </div>
       </main>
     )
@@ -152,13 +154,12 @@ useEffect(() => {
 return (
 <main
   className="h-[100dvh] bg-black text-white flex flex-col"
-  style={{
-    fontSize: "clamp(12px, 1vw, 18px)"
-  }}
+style={{ fontSize: "clamp(10px, 0.9vw, 16px)" }}
+
 >
 
   {/* TOP BAR */}
-  <div className="shrink-0 responsive-bar-top">
+  <div className="shrink-0 h-[clamp(26px,3vh,40px)]">
     <AccountStrip
       pairs={pairsData}
       onStateChange={(state: string) => {
@@ -167,83 +168,102 @@ return (
     />
   </div>
 
-  {/* SCROLL AREA */}
+{/* SCROLL AREA */}
+<div className="flex-1 overflow-hidden relative">
+
+  {openPair ? (
+
 <div
-  className={`flex-1 px-3 py-2 ${
-    viewMode === "MIN" && !openPair
-      ? "grid overflow-hidden"
-      : "flex flex-col overflow-y-auto"
-  }`}
-  style={
-    viewMode === "MIN" && !openPair
-      ? { gridTemplateRows: `repeat(${PAIRS.length}, 1fr)` }
-      : undefined
-  }
+  className="absolute inset-0 grid"
+  style={{
+    gridTemplateColumns: "clamp(30px, 3.5vw, 46px) 1fr",
+    gridTemplateRows: "1fr"
+  }}
 >
 
-    {PAIRS.map((pair) => {
-      const signal = uiSignals?.[pair]
-      const extra = pairData?.[pair] || {}
+      {/* LEFT RAIL */}
+      <div className="grid"
+        style={{
+          gridTemplateRows: "repeat(9, 1fr)"
+        }}
+      >
+        {PAIRS.map((pair) => (
+          <VerticalSymbolButton
+            key={pair}
+            pair={pair}
+            active={openPair === pair}
+            onClick={() => setOpenPair(pair)}
+          />
+        ))}
+      </div>
 
-      return (
-        <PairCard
-          key={pair}
-          pair={pair}
-          open={viewMode === "MAX" ? true : openPair === pair}
-          direction={signal?.direction}
-          signal={signal}
-          history={extra?.history}
-          orders={extra?.orders}
-          performance={extra?.performance}
-          notes={extra?.notes}
-          viewMode={viewMode}
-          onToggle={() => togglePair(pair)}
-        />
-      )
-    })}
+      {/* RIGHT DETAIL */}
+      <PairDetail
+        pair={openPair}
+        data={pairData?.[openPair]}
+        signal={uiSignals?.[openPair]}
+        onClose={() => setOpenPair(null)}
+      />
 
-  </div>
+    </div>
+
+  ) : (
+
+    <div
+      className="h-full grid"
+      style={{
+        gridTemplateColumns: "clamp(30px, 3.5vw, 46px) 1fr",
+        gridTemplateRows: "repeat(9, 1fr)",
+        rowGap: "0px"
+      }}
+    >
+      {PAIRS.map((pair) => {
+        const signal = uiSignals?.[pair]
+
+        return (
+          <>
+            <VerticalSymbolButton
+              key={`${pair}_btn`}
+              pair={pair}
+              active={false}
+              onClick={() => setOpenPair(pair)}
+            />
+
+            <PairCard
+              key={`${pair}_card`}
+              pair={pair}
+              direction={signal?.direction}
+              signal={signal}
+              onToggle={() => setOpenPair(pair)}
+            />
+          </>
+        )
+      })}
+    </div>
+
+  )}
+
+</div>
 
   {/* BOTTOM BAR */}
-  <div className="shrink-0 responsive-bar-bottom">
-    <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-3 shadow-[0_-8px_30px_rgba(0,0,0,0.6)]">
+  <div className="shrink-0 h-[clamp(26px,3vh,40px)]">
+    <div className="bg-neutral-900 border-t border-neutral-800 h-full flex items-center relative px-3">
         <div className="flex items-center gap-2 z-10">
-          <div className="w-[clamp(8px,1vw,18px)] h-[clamp(18px,2.5vh,38px)] flex flex-col justify-center gap-[2px] cursor-pointer">
-            <div className="h-[clamp(2px,0.3vh,5px)] w-full bg-neutral-400" />
-            <div className="h-[clamp(2px,0.3vh,5px)] w-full bg-neutral-400" />
-            <div className="h-[clamp(2px,0.3vh,5px)] w-full bg-neutral-400" />
+          <div className="w-[clamp(10px,1.5vw,18px)] h-[clamp(10px,1.8vh,22px)] flex flex-col justify-center gap-[2px] cursor-pointer">
+            <div className="h-[clamp(1px,0.2vw,3px)] w-full bg-neutral-400" />
+            <div className="h-[clamp(1px,0.2vw,3px)] w-full bg-neutral-400" />
+            <div className="h-[clamp(1px,0.2vw,3px)] w-full bg-neutral-400" />
           </div>
           <div className="text-[clamp(10px,1.8vh,22px)] font-semibold leading-none">
             FXHEDZ
           </div>
         </div>
 
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <button
-            onClick={() => {
-              if (viewMode === "MIN") {
-                setViewMode("MAX")
-                setOpenPair(null)
-              } else {
-                setViewMode("MIN")
-                setOpenPair(null)
-              }
-            }}
-            className={`pointer-events-auto w-[clamp(60px,12vw,320px)] h-[clamp(32px,5vh,80px)] rounded-full transition-all duration-300 relative
-              ${viewMode === "MIN" ? "bg-neutral-700" : "bg-neutral-500"}`}
-          >
-            <div
-              className={`absolute top-1/2 -translate-y-1/2 w-[clamp(24px,3vw,56px)] h-[clamp(24px,3vw,56px)] rounded-full bg-white transition-all duration-300
-                ${viewMode === "MIN" ? "left-2" : "right-2"}`}
-            />
-          </button>
-        </div>
-
         <div className="ml-auto text-right z-10 flex flex-col items-end">
-          <div className="text-[clamp(7px,1vw,14px)] leading-[clamp(11px,1.5vh,22px)]">
+          <div className="text-[clamp(7px,0.9vh,12px)] leading-[11px]">
             ZEROLOSS COMPOUNDED
           </div>
-          <div className="text-[clamp(9px,1.2vw,18px)] text-neutral-500 leading-[clamp(11px,1.5vh,22px)]">
+          <div className="text-[clamp(8px,1vh,14px)] text-neutral-500 leading-[11px]">
             HEDGING SYSTEM
           </div>
         </div>
