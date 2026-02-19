@@ -20,6 +20,8 @@ components\PairDetail.tsx
 components\Providers.tsx
 components\VerticalSymbolButton.tsx
 eslint.config.mjs
+GAS.txt
+MT5.txt
 next.config.ts
 next-env.d.ts
 package.json
@@ -44,6 +46,7 @@ FULL SOURCE CODE
 
 import NextAuth, { type NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
+import { cookies } from "next/headers"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -59,11 +62,19 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user }) {
       try {
         if (user?.email) {
+
+          // âœ… cookies() is async in Next 16
+          const cookieStore = await cookies()
+
+          const deviceId =
+            cookieStore.get("fx_device")?.value || ""
+
           await fetch(process.env.GAS_AUTH_URL!, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              email: user.email
+              email: user.email,
+              device_id: deviceId
             }),
           })
         }
@@ -89,8 +100,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../auth/[...nextauth]/route"
 
-const GAS_URL =
-  "https://script.google.com/macros/s/AKfycby55ye_dTtWJ-QILNYJIaXWv74_n7n0muh3U--sBl7yowMlp1FzESOokWqeHI75U5_R/exec?key=HEDZ2026"
+const GAS_BASE =
+  "https://script.google.com/macros/s/AKfycby55ye_dTtWJ-QILNYJIaXWv74_n7n0muh3U--sBl7yowMlp1FzESOokWqeHI75U5_R/exec"
 
 export async function GET(req: NextRequest) {
 
@@ -129,9 +140,9 @@ export async function GET(req: NextRequest) {
 
   try {
 
-    const url = pair
-      ? `${GAS_URL}&pair=${pair}`
-      : GAS_URL
+const url = pair
+  ? `${GAS_BASE}?secret=${process.env.GAS_SECRET}&pair=${pair}`
+  : `${GAS_BASE}?secret=${process.env.GAS_SECRET}`
 
     const res = await fetch(url, { cache: "no-store" })
     const json = await res.json()
@@ -646,6 +657,17 @@ return (
 
 import { signIn, signOut, useSession } from "next-auth/react"
 
+function getDeviceId() {
+  let id = localStorage.getItem("fxhedz_device_id")
+
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem("fxhedz_device_id", id)
+  }
+
+  return id
+}
+
 export default function AuthButton() {
   const { data: session, status } = useSession()
 
@@ -660,7 +682,14 @@ export default function AuthButton() {
   if (!session) {
     return (
       <button
-        onClick={() => signIn("google")}
+        onClick={() => {
+          const deviceId = getDeviceId()
+
+          // store device id in cookie for server access
+          document.cookie = `fx_device=${deviceId}; path=/; max-age=31536000`
+
+          signIn("google")
+        }}
         className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-sm rounded-md"
       >
         Login with Google

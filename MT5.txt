@@ -1,0 +1,3024 @@
+//+------------------------------------------------------------------+
+//|                                                   CoTrader.mq5   |
+//+------------------------------------------------------------------+
+#property strict
+//+------------------------------------------------------------------+
+#include <Trade/Trade.mqh>
+
+//====================================================================
+//  GLOBAL OBJECTS & INPUTS
+//====================================================================
+CTrade trade;
+
+//--- Risk / HEDZ mode
+input bool UseDynamicATR = true; // true = ATR system, false = fixed stop distance
+input int InpStopDistancePoints = 165; // fixed stop distance (points)
+
+enum LotCalcMode {
+    LOT_FROM_STORED_BALANCE = 0,
+        LOT_FROM_EQUITY = 1,
+        MANUAL_LOT = 2
+};
+
+input LotCalcMode LotMode = LOT_FROM_EQUITY;
+
+enum SignalState {
+    SIG_STRONG_BUY,
+    SIG_BUY,
+    SIG_NEUTRAL,
+    SIG_SELL,
+    SIG_STRONG_SELL
+};
+
+struct SignalPack {
+    SignalState state;
+    double emaPct;
+    double rsi;
+    double stoch;
+};
+double g_lastLiveLot = 0;
+int g_lastLiveBuys = 0;
+int g_lastLiveSells = 0;
+double g_lastLivePnL = 0;
+
+//====================================================================
+//  WINDOWS API (Optional) - used to trigger F7 and move cursor
+//====================================================================
+#import "user32.dll"
+void keybd_event(int bVk, int bScan, int dwFlags, int dwExtraInfo);
+void SetCursorPos(int x, int y);
+#import
+
+#define KEYEVENTF_KEYUP 0x0002 // Flag to indicate key release
+#define VK_F7 118 // Virtual Key Code for F7 (open EA properties)
+
+bool g_triggerF7 = false;
+
+//====================================================================
+//  UI OBJECT NAMES & DIMENSIONS
+//====================================================================
+string SYMBOL_BTN = "SymbolBtn";
+string LOT_EDIT = "LotInput";
+string BUY_BTN = "BuyBtn";
+string SELL_BTN = "SellBtn";
+string BAL_BTN = "BalanceBtn";
+string EXIT_BTN = "CloseBtn";
+string BUYVOL_BTN = "BuyVolBtn";
+string SELLVOL_BTN = "SellVolBtn";
+string EOB_BTN = "CloseOldBuyBtn";
+string EOS_BTN = "CloseOldSellBtn";
+string PnL_BTN = "Profit&LossBtn";
+string SIG_BTN = "SIG_BTN";
+string SIG_BG = "SIG_BG";
+
+const int UI_WIDTH = 100;
+const int UI_HEIGHT = 50;
+const int UI_X_POS = 3;
+const int UI_Y_START = 53;
+
+//--- Persistent balance global variable name
+string GV_BAL_NAME = "CoTrader_LastBalance";
+
+string DYN_UP_LINE = "DYN_UP_LINE";
+string DYN_DN_LINE = "DYN_DN_LINE";
+
+//====================================================================
+//  GLOBAL STATE
+//====================================================================
+double g_lot = 0.01;
+datetime g_last_bar_M5 = 0;
+datetime g_last_bar_M15 = 0;
+
+//--- ATR-related globals
+double g_TP_Price = 0.0;
+double g_SL_Price = 0.0;
+
+string g_lastSigText = "";
+datetime g_lastSigChange = 0;
+
+//--- Position snapshot storage (tickets + volumes)
+ulong g_last_tickets[];
+double g_last_volumes[];
+
+void UpdateSignalDisplay() {
+    UpdateSignalButton(SIG_BTN);
+}
+
+void UpdateSignalButton(string btn) {
+    string txt = GetVolumeActionText();
+    color bg = clrDimGray;
+    color fg = clrWhite;
+
+    if (txt == "BUY")
+        bg = clrGreen;
+    else if (txt == "SELL")
+        bg = clrFireBrick;
+    else if (txt == "EXIT")
+        bg = clrDarkSlateGray;
+    else if (txt == "HEDGED")
+        bg = clrDeepSkyBlue;
+
+    ObjectSetString(0, btn, OBJPROP_TEXT, txt);
+    SetButtonColor(btn, bg, fg);
+}
+
+string GetVolumeActionText() {
+    double buyVol = SumBuyVolume();
+    double sellVol = SumSellVolume();
+
+    if (buyVol == 0.0 && sellVol == 0.0)
+        return "EXIT";
+
+    if (buyVol > sellVol)
+        return "BUY";
+
+    if (sellVol > buyVol)
+        return "SELL";
+
+    return "HEDGED";
+}
+
+//====================================================================
+//  DRAW SIGNAL CANDLE BOXES
+//====================================================================
+#define SIG_CANDLE_PREFIX "SIG_CANDLE_"
+datetime g_lastSignalBar = 0;
+
+void DrawSignalCandleOverlay() {
+    string signal = GetVolumeActionText();
+
+    if (signal == "EXIT") {
+        ObjectsDeleteAll(0, SIG_CANDLE_PREFIX);
+        return;
+    }
+
+    color col;
+    if (signal == "BUY")
+        col = clrLimeGreen;
+    else if (signal == "SELL")
+        col = clrTomato;
+    else
+        return;
+
+    int shift = 0; // current candle (real-time)
+
+    datetime barOpen = iTime(_Symbol, PERIOD_CURRENT, shift);
+    int ps = PeriodSeconds(PERIOD_CURRENT);
+
+    // 🔑 BODY-ALIGNED TIME RANGE
+    datetime t1 = barOpen;
+    datetime t2 = barOpen + ps;
+
+    double open = iOpen(_Symbol, PERIOD_CURRENT, shift);
+    double close = iClose(_Symbol, PERIOD_CURRENT, shift);
+
+    string name = SIG_CANDLE_PREFIX + (string) barOpen;
+
+    // Create once
+    if (ObjectFind(0, name) < 0) {
+        ObjectCreate(0, name, OBJ_RECTANGLE, 0,
+            t1, MathMax(open, close),
+            t2, MathMin(open, close));
+
+        ObjectSetInteger(0, name, OBJPROP_FILL, true);
+        ObjectSetInteger(0, name, OBJPROP_BACK, false);
+    }
+
+    // Update every tick (real-time body)
+    ObjectSetInteger(0, name, OBJPROP_COLOR, col);
+
+    ObjectMove(0, name, 0, t1, MathMax(open, close));
+    ObjectMove(0, name, 1, t2, MathMin(open, close));
+}
+
+//====================================================================
+//  TELEGRAM BOT
+//====================================================================
+bool g_pendingScreenshot = false;
+string g_pendingMessage = "";
+datetime g_pendingSince = 0;
+ulong g_pendingSinceMS = 0;
+
+input string WEBHOOK_URL =
+    "https://script.google.com/macros/s/AKfycby55ye_dTtWJ-QILNYJIaXWv74_n7n0muh3U--sBl7yowMlp1FzESOokWqeHI75U5_R/exec";
+
+input string WEBHOOK_SECRET = "HEDZ2026";
+
+bool SendAlertToWebhook(const string msg) {
+    string payload =
+        "secret=HEDZ2026"
+    "&tx=" + g_tx +
+        "&message=" + UrlEncode(msg);
+
+    uchar body[];
+    int len = StringToCharArray(payload, body, 0, WHOLE_ARRAY, CP_UTF8);
+
+    // IMPORTANT: remove null terminator
+    if (len > 0)
+        ArrayResize(body, len - 1);
+
+    string headers = "Content-Type: application/x-www-form-urlencoded\r\n";
+
+    uchar result[];
+    string responseHeaders;
+
+    ResetLastError();
+    int res = WebRequest(
+        "POST",
+        WEBHOOK_URL,
+        headers,
+        10000,
+        body,
+        result,
+        responseHeaders
+    );
+
+    Print("Webhook HTTP=", res, " Err=", GetLastError());
+    return (res != -1);
+}
+
+string g_tx = "";
+
+void ScheduleSignalScreenshot(const string msg) {
+    if (g_pendingScreenshot)
+        return;
+
+    g_tx = IntegerToString((int) TimeCurrent());
+
+    g_pendingScreenshot = true;
+    g_pendingMessage = msg;
+
+    g_pendingSinceMS = GetTickCount(); // 🔥 THIS WAS MISSING
+    g_screenshotAttempts = 0;
+}
+
+string UrlEncode(const string src) {
+    string out = "";
+    for (int i = 0; i < StringLen(src); i++) {
+        ushort c = StringGetCharacter(src, i);
+
+        if ((c >= 'a' && c <= 'z') ||
+            (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') ||
+            c == '-' || c == '_' || c == '.' || c == '~') {
+            out += CharToString((char) c);
+        } else if (c == ' ') {
+            out += "%20";
+        } else {
+            out += StringFormat("%%%02X", c);
+        }
+    }
+    return out;
+}
+
+string TakeChartScreenshot() {
+    string file = "CoTrader_" + _Symbol + ".jpg";
+
+    // Delete old file (Common folder)
+    FileDelete(file, FILE_COMMON);
+
+    ChartSetInteger(0, CHART_BRING_TO_TOP, true);
+    ChartRedraw();
+    Sleep(700);
+    ChartRedraw();
+    Sleep(700);
+
+    // ✅ IMPORTANT: filename ONLY, no path
+    if (!ChartScreenShot(0, file, 960, 540, ALIGN_RIGHT)) {
+        Print("❌ ChartScreenShot failed, err=", GetLastError());
+        return "";
+    }
+
+    Print("📸 Screenshot created:", file);
+    return file;
+}
+
+void AppendString(uchar & dst[],
+    const string src) {
+    uchar tmp[];
+    int len = StringToCharArray(src, tmp, 0, WHOLE_ARRAY, CP_UTF8);
+    if (len > 0) {
+        ArrayResize(tmp, len - 1); // remove null terminator
+        int old = ArraySize(dst);
+        ArrayResize(dst, old + ArraySize(tmp));
+        ArrayCopy(dst, tmp, old);
+    }
+}
+
+void AppendBytes(uchar & dst[],
+    const uchar & src[]) {
+    int old = ArraySize(dst);
+    ArrayResize(dst, old + ArraySize(src));
+    ArrayCopy(dst, src, old);
+}
+
+//====================================================================
+//  BAR-TIME HELPERS
+//====================================================================
+bool IsNewBarM5() {
+    datetime t = iTime(_Symbol, PERIOD_M5, 0);
+    if (t != g_last_bar_M5) {
+        g_last_bar_M5 = t;
+        return true;
+    }
+    return false;
+}
+
+bool IsNewBarM15() {
+    datetime t = iTime(_Symbol, PERIOD_M15, 0);
+    if (t != g_last_bar_M15) {
+        g_last_bar_M15 = t;
+        return true;
+    }
+    return false;
+}
+
+//====================================================================
+//  VOLUME / LOT HELPERS
+//====================================================================
+int GetVolumeDigits() {
+    double step = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+    if (step <= 0) return 2;
+
+    int digits = 0;
+    while (step < 1.0 - 1e-12 && digits < 10) {
+        step *= 10.0;
+        digits++;
+    }
+    return digits;
+}
+
+double ClampLot(double lots) {
+    double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+    double maxLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+    double step = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
+    if (step <= 0) step = 0.01;
+
+    double steps = MathFloor(lots / step + 0.5);
+    lots = steps * step;
+
+    if (lots < minLot) lots = minLot;
+    if (lots > maxLot) lots = maxLot;
+
+    return NormalizeDouble(lots, GetVolumeDigits());
+}
+
+//====================================================================
+//  GENERAL UTILITIES
+//====================================================================
+bool NearlyEqual(double a, double b, double eps = 0.0000001) {
+    return (MathAbs(a - b) < eps);
+}
+
+void UpdateDynamicReferenceLines() {
+    string sym = _Symbol;
+    double distPts = InpStopDistancePoints;
+
+    double dist = distPts * _Point;
+
+    double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+    double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+
+    // Mid-price for visual symmetry
+    double mid = (bid + ask) / 2.0;
+
+    double upPrice = mid + dist;
+    double dnPrice = mid - dist;
+
+    // --- Upper line
+    if (ObjectFind(0, DYN_UP_LINE) < 0) {
+        ObjectCreate(0, DYN_UP_LINE, OBJ_HLINE, 0, 0, upPrice);
+        ObjectSetInteger(0, DYN_UP_LINE, OBJPROP_COLOR, clrDimGray);
+        ObjectSetInteger(0, DYN_UP_LINE, OBJPROP_STYLE, STYLE_DASH);
+        ObjectSetInteger(0, DYN_UP_LINE, OBJPROP_WIDTH, 1);
+        ObjectSetInteger(0, DYN_UP_LINE, OBJPROP_BACK, true);
+    } else {
+        ObjectSetDouble(0, DYN_UP_LINE, OBJPROP_PRICE, upPrice);
+    }
+
+    // --- Lower line
+    if (ObjectFind(0, DYN_DN_LINE) < 0) {
+        ObjectCreate(0, DYN_DN_LINE, OBJ_HLINE, 0, 0, dnPrice);
+        ObjectSetInteger(0, DYN_DN_LINE, OBJPROP_COLOR, clrDimGray);
+        ObjectSetInteger(0, DYN_DN_LINE, OBJPROP_STYLE, STYLE_DASH);
+        ObjectSetInteger(0, DYN_DN_LINE, OBJPROP_WIDTH, 1);
+        ObjectSetInteger(0, DYN_DN_LINE, OBJPROP_BACK, true);
+    } else {
+        ObjectSetDouble(0, DYN_DN_LINE, OBJPROP_PRICE, dnPrice);
+    }
+}
+
+//====================================================================
+//  UI HELPERS
+//====================================================================
+bool IsObjectPresent(const string name) {
+    return (ObjectFind(0, name) >= 0);
+}
+
+void CreateEdit(string name, int x, int y, int w, int h,
+    const string text) {
+    ObjectCreate(0, name, OBJ_EDIT, 0, 0, 0);
+    ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+    ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+    ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
+    ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
+    ObjectSetInteger(0, name, OBJPROP_BGCOLOR, clrWhite);
+    ObjectSetInteger(0, name, OBJPROP_COLOR, clrBlack);
+    ObjectSetInteger(0, name, OBJPROP_ALIGN, ALIGN_CENTER);
+    ObjectSetString(0, name, OBJPROP_TEXT, text);
+}
+
+void CreateButton(string name,
+    const string text, int x, int y, int w, int h) {
+    ObjectCreate(0, name, OBJ_BUTTON, 0, 0, 0);
+    ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+    ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+    ObjectSetInteger(0, name, OBJPROP_XSIZE, w);
+    ObjectSetInteger(0, name, OBJPROP_YSIZE, h);
+    ObjectSetString(0, name, OBJPROP_TEXT, text);
+}
+
+void ResetButton(const string btn) {
+    if (ObjectFind(0, btn) >= 0) {
+        ObjectSetInteger(0, btn, OBJPROP_STATE, false);
+        ChartRedraw();
+    }
+}
+
+double GetSymbolFloatingPnL() {
+    double pnl = 0.0;
+
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong ticket = PositionGetTicket(i);
+        if (!PositionSelectByTicket(ticket)) continue;
+
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol)
+            continue;
+
+        pnl += PositionGetDouble(POSITION_PROFIT);
+    }
+
+    return pnl;
+}
+
+void UpdatePnLButton() {
+    if (!IsObjectPresent(PnL_BTN))
+        return;
+
+    double pnl = GetSymbolFloatingPnL();
+
+    // Format: -4.12 / 4.12
+    string txt = DoubleToString(pnl, 2);
+    ObjectSetString(0, PnL_BTN, OBJPROP_TEXT, txt);
+
+    // Color logic
+    if (pnl > 0.0) {
+        SetButtonColor(PnL_BTN, clrPurple, clrWhite);
+    } else if (pnl < 0.0) {
+        SetButtonColor(PnL_BTN, clrOlive, clrWhite);
+    } else {
+        SetButtonColor(PnL_BTN, clrDimGray, clrWhite);
+    }
+}
+
+
+//====================================================================
+//  TP1 TP2 TP3 AND SL INDICATIONS
+//====================================================================
+
+#define BTN_TP1 "BTN_TP1"
+#define BTN_TP2 "BTN_TP2"
+#define BTN_TP3 "BTN_TP3"
+#define BTN_SL "BTN_SL"
+#define BTN_ENTRY "BTN_ENTRY"
+#define BTN_EXIT "BTN_EXIT"
+
+input int LabelRightOffsetBars = 5;
+input double LabelVerticalMarginR = 0.10;
+
+void ClearTPButtons() {
+    ObjectDelete(0, BTN_TP1);
+    ObjectDelete(0, BTN_TP2);
+    ObjectDelete(0, BTN_TP3);
+    ObjectDelete(0, BTN_SL);
+    ObjectDelete(0, BTN_ENTRY);
+}
+
+datetime GetRightEdgeTime() {
+    // --- Chart right visible time ---
+    int firstVisible = (int) ChartGetInteger(0, CHART_FIRST_VISIBLE_BAR, 0);
+    int visibleBars = (int) ChartGetInteger(0, CHART_VISIBLE_BARS, 0);
+
+    if (firstVisible < 0 || visibleBars <= 0)
+        return TimeCurrent();
+
+    int lastVisible = firstVisible - visibleBars + 1;
+    if (lastVisible < 0)
+        lastVisible = 0;
+
+    datetime chartRight =
+        iTime(_Symbol, PERIOD_CURRENT, lastVisible) +
+        PeriodSeconds(PERIOD_CURRENT);
+
+    // --- Rectangle right edge (with small padding) ---
+    datetime rectRight =
+        g_rectRightTime > 0 ?
+        g_rectRightTime + PeriodSeconds(PERIOD_CURRENT) :
+        chartRight;
+
+    // --- Clamp: never go beyond visible chart ---
+    return MathMin(rectRight, chartRight);
+}
+
+void CreatePriceLabelRight(
+    string name,
+    string text,
+    double price,
+    color clr
+) {
+    datetime tRight = GetRightEdgeTime() +
+        PeriodSeconds(PERIOD_CURRENT) * LabelRightOffsetBars;
+
+    ObjectCreate(0, name, OBJ_TEXT, 0, tRight, price);
+
+    ObjectSetString(0, name, OBJPROP_TEXT, text);
+    ObjectSetInteger(0, name, OBJPROP_COLOR, clr);
+    ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 13);
+    ObjectSetString(0, name, OBJPROP_FONT, "Arial Bold");
+
+    ObjectSetInteger(0, name, OBJPROP_ANCHOR, ANCHOR_LEFT);
+    ObjectSetInteger(0, name, OBJPROP_BACK, false);
+    ObjectSetInteger(0, name, OBJPROP_SELECTABLE, false);
+}
+
+void UpdatePriceLabelsRight() {
+    datetime tRight = GetRightEdgeTime() +
+        PeriodSeconds(PERIOD_CURRENT) * LabelRightOffsetBars;
+
+    if (ObjectFind(0, BTN_TP1) >= 0)
+        ObjectMove(0, BTN_TP1, 0, tRight,
+            ObjectGetDouble(0, BTN_TP1, OBJPROP_PRICE));
+
+    if (ObjectFind(0, BTN_TP2) >= 0)
+        ObjectMove(0, BTN_TP2, 0, tRight,
+            ObjectGetDouble(0, BTN_TP2, OBJPROP_PRICE));
+
+    if (ObjectFind(0, BTN_TP3) >= 0)
+        ObjectMove(0, BTN_TP3, 0, tRight,
+            ObjectGetDouble(0, BTN_TP3, OBJPROP_PRICE));
+
+    if (ObjectFind(0, BTN_SL) >= 0)
+        ObjectMove(0, BTN_SL, 0, tRight,
+            ObjectGetDouble(0, BTN_SL, OBJPROP_PRICE));
+
+    if (ObjectFind(0, BTN_EXIT) >= 0)
+        ObjectMove(0, BTN_EXIT, 0, tRight,
+            ObjectGetDouble(0, BTN_EXIT, OBJPROP_PRICE));
+
+    if (ObjectFind(0, BTN_ENTRY) >= 0)
+        ObjectMove(0, BTN_ENTRY, 0, tRight,
+            ObjectGetDouble(0, BTN_ENTRY, OBJPROP_PRICE));
+
+}
+
+string GetLatestTradeLabel(bool isBuy) {
+    datetime latestTime = 0;
+    string label = isBuy ? "B" : "S";
+
+    for (int i = 0; i < ArraySize(g_trades); i++) {
+        if (isBuy && g_trades[i].dir != "BUY") continue;
+        if (!isBuy && g_trades[i].dir != "SELL") continue;
+
+        ulong posId = g_trades[i].posId;
+
+        for (int p = 0; p < PositionsTotal(); p++) {
+            ulong t = PositionGetTicket(p);
+            if (!PositionSelectByTicket(t)) continue;
+            if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+            ulong checkId =
+                (ulong) PositionGetInteger(POSITION_IDENTIFIER);
+
+            if (checkId != posId)
+                continue;
+
+            datetime openTime =
+                (datetime) PositionGetInteger(POSITION_TIME);
+
+            if (openTime > latestTime) {
+                latestTime = openTime;
+                label =
+                    (g_trades[i].dir == "BUY" ? "B" : "S") +
+                    IntegerToString(g_trades[i].index);
+            }
+        }
+    }
+
+    return label;
+}
+
+string GetLabelForLatestOpenPosition() {
+    datetime latestTime = 0;
+    string label = "";
+
+    for (int p = 0; p < PositionsTotal(); p++) {
+        ulong t = PositionGetTicket(p);
+        if (!PositionSelectByTicket(t)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+        datetime openTime =
+            (datetime) PositionGetInteger(POSITION_TIME);
+
+        if (openTime > latestTime) {
+            latestTime = openTime;
+
+            ulong posId =
+                (ulong) PositionGetInteger(POSITION_IDENTIFIER);
+
+            // find matching trade record
+            for (int i = 0; i < ArraySize(g_trades); i++) {
+                if (g_trades[i].posId == posId) {
+                    label =
+                        (g_trades[i].dir == "BUY" ? "B" : "S") +
+                        IntegerToString(g_trades[i].index);
+                    break;
+                }
+            }
+        }
+    }
+
+    return label;
+}
+
+//====================================================================
+//  DRAW RECTANGLES
+//====================================================================
+
+double GetRiskDistancePrice() {
+
+    if (UseDynamicATR && g_TP_Price > 0.0)
+        return g_TP_Price;
+
+    return InpStopDistancePoints * _Point;
+}
+
+#define RECT_TP "TRADE_RECT_TP"
+#define RECT_SL "TRADE_RECT_SL"
+
+void ClearTradeRectangles() {
+
+    ObjectDelete(0, RECT_TP);
+    ObjectDelete(0, RECT_SL);
+
+    ClearTPButtons();
+}
+
+string PriceTxt(double price) {
+    return DoubleToString(price, _Digits);
+}
+
+datetime g_rectRightTime = 0;
+
+void DrawTradeRectangles(double entryPrice, bool isBuy) {
+
+    ClearTradeRectangles();
+
+    double R = GetRiskDistancePrice();
+
+    datetime t1 = TimeCurrent();
+    datetime t2 = t1 + PeriodSeconds(PERIOD_CURRENT) * 25000;
+    g_rectRightTime = t2;
+
+    double tp = isBuy ? entryPrice + R : entryPrice - R;
+
+    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+    double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+    double sl = isBuy ? entryPrice - R : entryPrice + R;
+
+    color tpCol = (color) 0xA06000;
+    color slCol = (color) 0x000055;
+
+    // ================= TP =================
+    ObjectCreate(0, RECT_TP, OBJ_RECTANGLE, 0,
+        t1,
+        isBuy ? entryPrice : tp,
+        t2,
+        isBuy ? tp : entryPrice
+    );
+
+    ObjectSetInteger(0, RECT_TP, OBJPROP_BACK, true);
+    ObjectSetInteger(0, RECT_TP, OBJPROP_FILL, true);
+    ObjectSetInteger(0, RECT_TP, OBJPROP_COLOR, tpCol);
+
+    // ================= SL =================
+    ObjectCreate(0, RECT_SL, OBJ_RECTANGLE, 0,
+        t1,
+        isBuy ? sl : entryPrice,
+        t2,
+        isBuy ? entryPrice : sl
+    );
+
+    ObjectSetInteger(0, RECT_SL, OBJPROP_BACK, true);
+    ObjectSetInteger(0, RECT_SL, OBJPROP_FILL, true);
+    ObjectSetInteger(0, RECT_SL, OBJPROP_COLOR, slCol);
+
+    // --- Labels
+    ClearTPButtons();
+
+    double pad = R * LabelVerticalMarginR;
+
+    double tp_lbl = isBuy ? tp - pad : tp + pad;
+    double sl_lbl = isBuy ? sl + pad : sl - pad;
+
+    // --------------------------------------------------
+    // 🔥 DYNAMIC LABEL ENGINE (B1 / S1 STYLE)
+    // --------------------------------------------------
+
+    string entryLabel = GetLatestTradeLabel(isBuy);
+
+    string hedgeLabel = (isBuy ? "SS" : "BS");
+
+    double entry_lbl = isBuy ? entryPrice - pad : entryPrice + pad;
+
+    // ---------------- TP ----------------
+    CreatePriceLabelRight(
+        BTN_TP1,
+        "TP " + PriceTxt(tp),
+        tp_lbl,
+        clrYellow
+    );
+
+    // ---------------- SL (HEDGE LABEL) ----------------
+    CreatePriceLabelRight(
+        BTN_SL,
+        hedgeLabel + " " + PriceTxt(sl),
+        sl_lbl,
+        clrYellow
+    );
+
+    // ---------------- ENTRY ----------------
+    CreatePriceLabelRight(
+        BTN_ENTRY,
+        entryLabel + " " + PriceTxt(entryPrice),
+        entry_lbl,
+        clrWhite
+    );
+
+
+}
+
+bool GetLatestPosition(double & entry, bool & isBuy) {
+    datetime latestTime = 0;
+    bool found = false;
+
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong t = PositionGetTicket(i);
+        if (!PositionSelectByTicket(t)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+        datetime openTime = (datetime) PositionGetInteger(POSITION_TIME);
+        if (openTime > latestTime) {
+            latestTime = openTime;
+            entry = PositionGetDouble(POSITION_PRICE_OPEN);
+            isBuy = (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY);
+            found = true;
+        }
+    }
+
+    return found;
+}
+
+//====================================================================
+//  PERSISTENT BALANCE (GLOBAL VARIABLE)
+//====================================================================
+double LoadStoredBalance() {
+    if (!GlobalVariableCheck(GV_BAL_NAME)) {
+        double v = AccountInfoDouble(ACCOUNT_BALANCE);
+        GlobalVariableSet(GV_BAL_NAME, v);
+        return v;
+    }
+    return GlobalVariableGet(GV_BAL_NAME);
+}
+
+void SaveStoredBalance(double v) {
+    GlobalVariableSet(GV_BAL_NAME, v);
+}
+
+void UpdateBalanceLabel() {
+    if (!IsObjectPresent(BAL_BTN)) return;
+
+    double storedBalance = LoadStoredBalance();
+
+    if (PositionsTotal() == 0) {
+        storedBalance = AccountInfoDouble(ACCOUNT_BALANCE);
+        SaveStoredBalance(storedBalance);
+    }
+
+    ObjectSetString(0, BAL_BTN, OBJPROP_TEXT, DoubleToString(storedBalance, 0));
+}
+
+//====================================================================
+//  AUTO LOT SIZING
+//====================================================================
+double AutoLotFromBalance() {
+    double storedbalance = LoadStoredBalance();
+    double equity = AccountInfoDouble(ACCOUNT_EQUITY);
+    double riskPercent = 0.1; // 1% per trade
+
+    double baseValue;
+
+    // --- Choose source value based on user input ---
+    if (LotMode == LOT_FROM_STORED_BALANCE)
+        baseValue = storedbalance;
+    else
+        baseValue = equity;
+
+    double lot = baseValue * riskPercent / 100000.0;
+
+    double minLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+    double maxLot = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+
+    if (lot < minLot) lot = minLot;
+    if (lot > maxLot) lot = maxLot;
+
+    return NormalizeDouble(lot, GetVolumeDigits());
+}
+
+bool ReadLotFromEdit() {
+    if (!IsObjectPresent(LOT_EDIT)) return false;
+
+    string txt = ObjectGetString(0, LOT_EDIT, OBJPROP_TEXT);
+    double v = StringToDouble(txt);
+    if (v <= 0) return false;
+
+    g_lot = ClampLot(v);
+    ObjectSetString(0, LOT_EDIT, OBJPROP_TEXT, DoubleToString(g_lot, GetVolumeDigits()));
+    return true;
+}
+
+//====================================================================
+//  POSITION SUMMARIES & VOLUME UI
+//====================================================================
+double SumBuyVolume() {
+    double total = 0.0;
+
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong t = PositionGetTicket(i);
+        if (!PositionSelectByTicket(t)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+        if ((ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE) != POSITION_TYPE_BUY)
+            continue;
+
+        total += PositionGetDouble(POSITION_VOLUME);
+    }
+    return total;
+}
+
+double SumSellVolume() {
+    double total = 0.0;
+
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong t = PositionGetTicket(i);
+        if (!PositionSelectByTicket(t)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+        if ((ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE) != POSITION_TYPE_SELL)
+            continue;
+
+        total += PositionGetDouble(POSITION_VOLUME);
+    }
+    return total;
+}
+
+void UpdateVolumeButtons() {
+    double buyVol = SumBuyVolume();
+    double sellVol = SumSellVolume();
+
+    //--- Update text
+    if (IsObjectPresent(BUYVOL_BTN))
+        ObjectSetString(0, BUYVOL_BTN, OBJPROP_TEXT, DoubleToString(buyVol, 2));
+
+    if (IsObjectPresent(SELLVOL_BTN))
+        ObjectSetString(0, SELLVOL_BTN, OBJPROP_TEXT, DoubleToString(sellVol, 2));
+
+    //--- Update colors based on which side is bigger
+    if (buyVol > sellVol) {
+        // BUY dominates → BUY green, SELL grey
+        SetButtonColor(BUYVOL_BTN, clrGreen, clrWhite);
+        SetButtonColor(SELLVOL_BTN, clrDimGray, clrWhite);
+    } else if (sellVol > buyVol) {
+        // SELL dominates → SELL red, BUY grey
+        SetButtonColor(SELLVOL_BTN, clrFireBrick, clrWhite);
+        SetButtonColor(BUYVOL_BTN, clrDimGray, clrWhite);
+    } else {
+        // Equal → both neutral grey
+        SetButtonColor(BUYVOL_BTN, clrDimGray, clrWhite);
+        SetButtonColor(SELLVOL_BTN, clrDimGray, clrWhite);
+    }
+}
+
+//====================================================================
+//  ATR STRUCT & ENGINE
+//====================================================================
+struct ATRSnapshot {
+    bool valid;
+    double atrNow;
+    double atrPrev1;
+    double atrPrev5;
+    double atrPrev10;
+};
+
+ATRSnapshot GetATRValues(string symbol, ENUM_TIMEFRAMES tf = PERIOD_CURRENT, int period = 14) {
+    ATRSnapshot snap;
+    snap.valid = false;
+
+    int barsNeeded = period + 11;
+    if (Bars(symbol, tf) < barsNeeded)
+        return snap;
+
+    double tr[], atr[];
+    ArrayResize(tr, barsNeeded);
+    ArrayResize(atr, 11);
+    ArraySetAsSeries(tr, true);
+    ArraySetAsSeries(atr, true);
+
+    for (int i = 0; i < barsNeeded; i++) {
+        double hi = iHigh(symbol, tf, i);
+        double lo = iLow(symbol, tf, i);
+        double cp = iClose(symbol, tf, i + 1);
+        tr[i] = MathMax(hi, cp) - MathMin(lo, cp);
+    }
+
+    double sum = 0.0;
+    for (int i = 11; i < 11 + period; i++)
+        sum += tr[i];
+
+    atr[10] = sum / period;
+
+    for (int i = 9; i >= 0; i--)
+        atr[i] = atr[i + 1] + (tr[i] - tr[i + period]) / period;
+
+    snap.valid = true;
+    snap.atrNow = atr[0];
+    snap.atrPrev1 = atr[1];
+    snap.atrPrev5 = atr[5];
+    snap.atrPrev10 = atr[10];
+
+    return snap;
+}
+
+double CalculateHEDZATRMultiplier(double atr, double atr10) {
+    if (atr10 <= 0) return 2.0;
+
+    double r = atr / atr10;
+    double m = 1.0 + 1.5 / (1.0 + MathExp(-5.0 * (r - 1.0)));
+
+    return MathMin(MathMax(m, 1.3), 2.5);
+}
+
+void SetDynamicTP_SL() {
+    ATRSnapshot snap = GetATRValues(_Symbol, PERIOD_M15, 14);
+    if (!snap.valid) return;
+
+    double mult = CalculateHEDZATRMultiplier(snap.atrNow, snap.atrPrev10);
+    double points = snap.atrNow / _Point;
+
+    double tp = points * mult;
+    double sl = tp * 2.0;
+
+    g_TP_Price = tp * _Point;
+    g_SL_Price = sl * _Point;
+}
+
+//====================================================================
+//  TRADE HELPERS
+//====================================================================
+bool PlaceBuyStopAt(double lots, double price) {
+    price = NormalizeDouble(price, (int) SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
+    return trade.BuyStop(lots, price, _Symbol);
+}
+
+bool PlaceSellStopAt(double lots, double price) {
+    price = NormalizeDouble(price, (int) SymbolInfoInteger(_Symbol, SYMBOL_DIGITS));
+    return trade.SellStop(lots, price, _Symbol);
+}
+
+bool HasAnyStopOrdersForSymbol(string sym) {
+    for (int i = OrdersTotal() - 1; i >= 0; i--) {
+        ulong t = OrderGetTicket(i);
+        if (!OrderSelect(t)) continue;
+        if (OrderGetString(ORDER_SYMBOL) != sym) continue;
+
+        ENUM_ORDER_TYPE type = (ENUM_ORDER_TYPE) OrderGetInteger(ORDER_TYPE);
+        if (type == ORDER_TYPE_BUY_STOP ||
+            type == ORDER_TYPE_SELL_STOP ||
+            type == ORDER_TYPE_BUY_STOP_LIMIT ||
+            type == ORDER_TYPE_SELL_STOP_LIMIT)
+            return true;
+    }
+    return false;
+}
+
+double GetStopDistancePrice() {
+
+    if (UseDynamicATR)
+        return g_TP_Price;
+
+    return InpStopDistancePoints * _Point;
+}
+
+//====================================================================
+//  SAFE EXECUTION WRAPPERS
+//====================================================================
+bool SafeClosePosition(ulong ticket, int maxAttempts = 10) {
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (trade.PositionClose(ticket)) {
+            Sleep(200);
+            if (!PositionSelectByTicket(ticket)) {
+                Print("✅ Closed position ", ticket);
+                return true;
+            }
+        }
+
+        int err = GetLastError();
+        Print("❌ Close failed on attempt ", attempt, " || Ticket=", ticket, " || Error=", err);
+
+        Sleep(200);
+    }
+    Print("⛔ Max attempts reached. Could not close ticket=", ticket);
+    return false;
+}
+
+bool SafeDeleteOrder(ulong ticket, int maxAttempts = 10) {
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+        if (trade.OrderDelete(ticket)) {
+            Sleep(200);
+            if (!OrderSelect(ticket)) {
+                Print("✅ Deleted order ", ticket);
+                return true;
+            }
+        }
+
+        int err = GetLastError();
+        Print("❌ Delete failed on attempt ", attempt, " || Ticket=", ticket, " || Error=", err);
+
+        Sleep(200);
+    }
+    Print("⛔ Max attempts reached. Could not delete order=", ticket);
+    return false;
+}
+
+//====================================================================
+//  STOP-ORDER CLOSE HELPERS (HEDZ CLEANUP)
+//====================================================================
+bool closeBuyStops() {
+    bool removed = false;
+    for (int i = OrdersTotal() - 1; i >= 0; i--) {
+        ulong t = OrderGetTicket(i);
+        if (!OrderSelect(t)) continue;
+        if (OrderGetString(ORDER_SYMBOL) != _Symbol) continue;
+
+        ENUM_ORDER_TYPE type = (ENUM_ORDER_TYPE) OrderGetInteger(ORDER_TYPE);
+        if (type == ORDER_TYPE_BUY_STOP || type == ORDER_TYPE_BUY_STOP_LIMIT) {
+            if (trade.OrderDelete(t))
+                removed = true;
+        }
+    }
+    return removed;
+}
+
+bool closeSellStops() {
+    bool removed = false;
+    for (int i = OrdersTotal() - 1; i >= 0; i--) {
+        ulong t = OrderGetTicket(i);
+        if (!OrderSelect(t)) continue;
+        if (OrderGetString(ORDER_SYMBOL) != _Symbol) continue;
+
+        ENUM_ORDER_TYPE type = (ENUM_ORDER_TYPE) OrderGetInteger(ORDER_TYPE);
+        if (type == ORDER_TYPE_SELL_STOP || type == ORDER_TYPE_SELL_STOP_LIMIT) {
+            if (trade.OrderDelete(t))
+                removed = true;
+        }
+    }
+    return removed;
+}
+
+//====================================================================
+//  HEDZ ENGINE
+//====================================================================
+datetime g_lastStopUpdate = 0;
+ulong g_lastMirroredPosition = 0;
+
+bool StopVolumeMatches(double expectedLot) {
+    for (int i = OrdersTotal() - 1; i >= 0; i--) {
+        ulong t = OrderGetTicket(i);
+        if (!OrderSelect(t)) continue;
+        if (OrderGetString(ORDER_SYMBOL) != _Symbol) continue;
+
+        ENUM_ORDER_TYPE type = (ENUM_ORDER_TYPE) OrderGetInteger(ORDER_TYPE);
+
+        if (type == ORDER_TYPE_BUY_STOP || type == ORDER_TYPE_SELL_STOP) {
+            double lot = OrderGetDouble(ORDER_VOLUME_CURRENT);
+
+            if (MathAbs(lot - expectedLot) > 0.0000001)
+                return false;
+        }
+    }
+    return true;
+}
+
+void ManageStopsOnTick() {
+    datetime nowTick = TimeCurrent();
+    if (nowTick == g_lastStopUpdate)
+        return;
+
+    g_lastStopUpdate = nowTick;
+
+    if (UseDynamicATR && g_SL_Price <= 0.0)
+        return;
+
+    string sym = _Symbol;
+    // --------------------------------------------------
+    // 🔥 DO NOTHING WHEN HEDGED (buyVol == sellVol)
+    // --------------------------------------------------
+    double buyVol = SumBuyVolume();
+    double sellVol = SumSellVolume();
+
+    if (NearlyEqual(buyVol, sellVol)) {
+        // remove any leftover stops
+        closeBuyStops();
+        closeSellStops();
+
+        // reset mirror memory so next imbalance can trigger
+        g_lastMirroredPosition = 0;
+
+        return;
+    }
+
+    // ------------------------------------------
+    // 🔥 Find latest position ticket + info
+    // ------------------------------------------
+    ulong latestTicket = 0;
+    bool isBuy = false;
+    double posLot = 0.0;
+    datetime latestTime = 0;
+
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong t = PositionGetTicket(i);
+        if (!PositionSelectByTicket(t)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != sym) continue;
+
+        datetime openTime =
+            (datetime) PositionGetInteger(POSITION_TIME);
+
+        if (openTime > latestTime) {
+            latestTime = openTime;
+            latestTicket = t;
+            posLot = PositionGetDouble(POSITION_VOLUME);
+
+            ENUM_POSITION_TYPE type =
+                (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
+
+            isBuy = (type == POSITION_TYPE_BUY);
+        }
+    }
+
+    // no positions
+    if (latestTicket == 0)
+        return;
+
+    // --------------------------------------------------
+    // 🔥 PREVENT REPEAT MIRRORING
+    // --------------------------------------------------
+    if (latestTicket == g_lastMirroredPosition &&
+        StopVolumeMatches(posLot))
+        return;
+
+    g_lastMirroredPosition = latestTicket;
+
+    // --------------------------------------------------
+    // 🔥 Place ONE opposite stop
+    // --------------------------------------------------
+    double entryPrice = PositionGetDouble(POSITION_PRICE_OPEN);
+    double dist = GetStopDistancePrice();
+
+    double stopPrice;
+
+    if (isBuy)
+        stopPrice = entryPrice - dist;
+    else
+        stopPrice = entryPrice + dist;
+
+    stopPrice = NormalizeDouble(stopPrice, _Digits);
+
+    if (isBuy)
+        PlaceSellStopAt(posLot, stopPrice);
+    else
+        PlaceBuyStopAt(posLot, stopPrice);
+
+}
+
+void InvalidateFarStops() {
+    string sym = _Symbol;
+
+    if (UseDynamicATR && g_SL_Price <= 0.0)
+        return;
+
+    double dist = GetStopDistancePrice();
+    double bid = SymbolInfoDouble(sym, SYMBOL_BID);
+    double ask = SymbolInfoDouble(sym, SYMBOL_ASK);
+
+    for (int i = OrdersTotal() - 1; i >= 0; i--) {
+        ulong ticket = OrderGetTicket(i);
+        if (!OrderSelect(ticket)) continue;
+        if (OrderGetString(ORDER_SYMBOL) != sym) continue;
+
+        ENUM_ORDER_TYPE type = (ENUM_ORDER_TYPE) OrderGetInteger(ORDER_TYPE);
+        double sp = OrderGetDouble(ORDER_PRICE_OPEN);
+
+        if ((type == ORDER_TYPE_SELL_STOP || type == ORDER_TYPE_SELL_STOP_LIMIT) &&
+            bid > sp + 2.0 * dist) {
+            closeBuyStops();
+            closeSellStops();
+            return;
+        }
+
+        if ((type == ORDER_TYPE_BUY_STOP || type == ORDER_TYPE_BUY_STOP_LIMIT) &&
+            ask < sp - 2.0 * dist) {
+            closeBuyStops();
+            closeSellStops();
+            return;
+        }
+    }
+}
+
+//====================================================================
+//  SNAPSHOT PERSISTENCE (TICKETS & VOLUMES)
+//====================================================================
+string TicketsFile() {
+    return "CoTrader_" + _Symbol + "_tickets_volumes.txt";
+}
+
+void SaveSnapshotToFile(const ulong & tickets[],
+    const double & volumes[]) {
+    int h = FileOpen(TicketsFile(), FILE_WRITE | FILE_TXT | FILE_COMMON);
+    if (h == INVALID_HANDLE) return;
+
+    string txt = "";
+    int n = ArraySize(tickets);
+
+    for (int i = 0; i < n; i++) {
+        if (i > 0) txt += ",";
+        txt += (string) tickets[i] + ":" + DoubleToString(volumes[i], 2);
+    }
+
+    FileWriteString(h, txt);
+    FileClose(h);
+}
+
+bool LoadSnapshotFromFile(ulong & tickets[], double & volumes[]) {
+    int h = FileOpen(TicketsFile(), FILE_READ | FILE_TXT | FILE_COMMON);
+    if (h == INVALID_HANDLE) {
+        ArrayResize(tickets, 0);
+        ArrayResize(volumes, 0);
+        return false;
+    }
+
+    string txt = FileReadString(h);
+    FileClose(h);
+
+    if (txt == "") {
+        ArrayResize(tickets, 0);
+        ArrayResize(volumes, 0);
+        return false;
+    }
+
+    string entries[];
+    int count = StringSplit(txt, ',', entries);
+    if (count <= 0) {
+        ArrayResize(tickets, 0);
+        ArrayResize(volumes, 0);
+        return false;
+    }
+
+    ArrayResize(tickets, count);
+    ArrayResize(volumes, count);
+
+    for (int i = 0; i < count; i++) {
+        string parts[];
+        int pc = StringSplit(entries[i], ':', parts);
+        if (pc == 2) {
+            tickets[i] = (ulong) StringToInteger(parts[0]);
+            volumes[i] = StringToDouble(parts[1]);
+        } else {
+            tickets[i] = 0;
+            volumes[i] = 0.0;
+        }
+    }
+
+    return true;
+}
+
+void GetCurrentSnapshot(ulong & tickets[], double & volumes[]) {
+    int total = PositionsTotal();
+    ArrayResize(tickets, total);
+    ArrayResize(volumes, total);
+
+    int idx = 0;
+    for (int i = 0; i < total; i++) {
+        ulong t = PositionGetTicket(i);
+        if (!PositionSelectByTicket(t)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+        double vol = PositionGetDouble(POSITION_VOLUME);
+        tickets[idx] = t;
+        volumes[idx] = vol;
+        idx++;
+    }
+
+    ArrayResize(tickets, idx);
+    ArrayResize(volumes, idx);
+}
+
+bool SnapshotChanged(const ulong & oldT[],
+    const double & oldV[],
+        const ulong & newT[],
+            const double & newV[]) {
+    int nOld = ArraySize(oldT);
+    int nNew = ArraySize(newT);
+    if (nOld != nNew) return true;
+
+    for (int i = 0; i < nOld; i++) {
+        if (oldT[i] != newT[i]) return true;
+        if (MathAbs(oldV[i] - newV[i]) > 1e-8) return true;
+    }
+    return false;
+}
+
+//====================================================================
+//  QUICK CLOSE / DELETE (SAFE & ASYNC HANDLING)
+//====================================================================
+void QuickCloseAllForSymbol() {
+    trade.SetAsyncMode(true);
+
+    string sym = Symbol();
+
+    // --- Quick CLOSE all positions for symbol (no retries) ---
+    for (int i = PositionsTotal() - 1; i >= 0; i--) {
+        if (PositionGetSymbol(i) != sym) continue;
+
+        ulong ticket = PositionGetTicket(i);
+        if (!trade.PositionClose(ticket)) {
+            int err = GetLastError();
+            Print("⚠ Quick close failed (pos) ticket=", ticket, " err=", err);
+        }
+    }
+
+    // --- Quick DELETE all pending orders for symbol (no retries) ---
+    for (int i = OrdersTotal() - 1; i >= 0; i--) {
+        ulong ticket = OrderGetTicket(i);
+        if (ticket <= 0) continue;
+        if (!OrderSelect(ticket)) continue;
+        if (OrderGetString(ORDER_SYMBOL) != sym) continue;
+
+        ENUM_ORDER_TYPE type = (ENUM_ORDER_TYPE) OrderGetInteger(ORDER_TYPE);
+        bool isPending =
+            type == ORDER_TYPE_BUY_LIMIT ||
+            type == ORDER_TYPE_SELL_LIMIT ||
+            type == ORDER_TYPE_BUY_STOP ||
+            type == ORDER_TYPE_SELL_STOP ||
+            type == ORDER_TYPE_BUY_STOP_LIMIT ||
+            type == ORDER_TYPE_SELL_STOP_LIMIT;
+
+        if (!isPending) continue;
+
+        if (!trade.OrderDelete(ticket)) {
+            int err = GetLastError();
+            Print("⚠ Quick delete failed (ord) ticket=", ticket, " err=", err);
+        }
+    }
+
+    trade.SetAsyncMode(false);
+}
+
+void CloseAllForSymbol() {
+    trade.SetAsyncMode(true);
+
+    string currentSymbol = Symbol();
+    int retryDelay = 150;
+    int maxAttempts = 20; // prevents infinite loops
+
+    // -----------------------------------------------------------
+    // CLOSE ALL OPEN POSITIONS FOR THIS SYMBOL
+    // -----------------------------------------------------------
+    bool positionsRemaining = true;
+    while (positionsRemaining) {
+        positionsRemaining = false;
+
+        for (int i = PositionsTotal() - 1; i >= 0; i--) {
+            if (PositionGetSymbol(i) != currentSymbol) continue;
+
+            ulong ticket = PositionGetTicket(i);
+            bool positionClosed = false;
+            int attempts = 0;
+
+            while (!positionClosed && attempts < maxAttempts) {
+                attempts++;
+
+                if (trade.PositionClose(ticket)) {
+                    Sleep(300);
+                    if (!PositionSelectByTicket(ticket)) {
+                        Print("✅ Closed position: ", ticket);
+                        positionClosed = true;
+                        break;
+                    }
+                }
+
+                int err = GetLastError();
+                Print("❌ Close fail (", ticket, ") Err=", err, " Attempt=", attempts);
+                Sleep(retryDelay);
+            }
+
+            if (!positionClosed) {
+                Print("⛔ Max attempts reached — position NOT closed: ", ticket);
+            }
+
+            positionsRemaining = true; // Rescan after attempts
+        }
+    }
+
+    // -----------------------------------------------------------
+    // DELETE ALL PENDING ORDERS FOR THIS SYMBOL
+    // -----------------------------------------------------------
+    bool ordersRemaining = true;
+    while (ordersRemaining) {
+        ordersRemaining = false;
+
+        for (int i = OrdersTotal() - 1; i >= 0; i--) {
+            ulong ticket = OrderGetTicket(i);
+            if (ticket <= 0) continue;
+
+            if (!OrderSelect(ticket)) continue;
+            if (OrderGetString(ORDER_SYMBOL) != currentSymbol) continue;
+
+            ENUM_ORDER_TYPE type = (ENUM_ORDER_TYPE) OrderGetInteger(ORDER_TYPE);
+            bool shouldDelete =
+                type == ORDER_TYPE_BUY_LIMIT ||
+                type == ORDER_TYPE_SELL_LIMIT ||
+                type == ORDER_TYPE_BUY_STOP ||
+                type == ORDER_TYPE_SELL_STOP ||
+                type == ORDER_TYPE_BUY_STOP_LIMIT ||
+                type == ORDER_TYPE_SELL_STOP_LIMIT;
+
+            if (!shouldDelete) continue;
+
+            bool deleted = false;
+            int attempts = 0;
+
+            while (!deleted && attempts < maxAttempts) {
+                attempts++;
+
+                if (trade.OrderDelete(ticket)) {
+                    Sleep(200);
+                    if (!OrderSelect(ticket)) {
+                        Print("✅ Deleted pending order: ", ticket);
+                        deleted = true;
+                        break;
+                    }
+                }
+
+                int err = GetLastError();
+                Print("❌ Delete fail (", ticket, ") Err=", err, " Attempt=", attempts);
+                Sleep(retryDelay);
+            }
+
+            if (!deleted) {
+                Print("⛔ Max attempts reached — order NOT deleted: ", ticket);
+            }
+
+            ordersRemaining = true;
+        }
+    }
+
+    trade.SetAsyncMode(false);
+}
+
+//====================================================================
+//  CLOSE OLDEST BUY POSITION
+//====================================================================
+void closeOldBuy() {
+    datetime oldestTime = LONG_MAX;
+    ulong oldestTicket = 0;
+
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong ticket = PositionGetTicket(i);
+        if (!PositionSelectByTicket(ticket)) continue;
+
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+        if ((ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE) != POSITION_TYPE_BUY)
+            continue;
+
+        datetime openTime = (datetime) PositionGetInteger(POSITION_TIME);
+        if (openTime < oldestTime) {
+            oldestTime = openTime;
+            oldestTicket = ticket;
+        }
+    }
+
+    if (oldestTicket > 0) {
+        SafeClosePosition(oldestTicket);
+    }
+}
+
+//====================================================================
+//  CLOSE OLDEST SELL POSITION
+//====================================================================
+void closeOldSell() {
+    datetime oldestTime = LONG_MAX;
+    ulong oldestTicket = 0;
+
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong ticket = PositionGetTicket(i);
+        if (!PositionSelectByTicket(ticket)) continue;
+
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+        if ((ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE) != POSITION_TYPE_SELL)
+            continue;
+
+        datetime openTime = (datetime) PositionGetInteger(POSITION_TIME);
+        if (openTime < oldestTime) {
+            oldestTime = openTime;
+            oldestTicket = ticket;
+        }
+    }
+
+    if (oldestTicket > 0) {
+        SafeClosePosition(oldestTicket);
+    }
+}
+
+//====================================================================
+//  CHART CONTROL MODULE (THEME & SCALE)
+//====================================================================
+void SetChartTheme() {
+    ChartSetSymbolPeriod(0, NULL, PERIOD_CURRENT);
+
+    ChartSetInteger(0, CHART_MODE, CHART_CANDLES);
+    ChartSetInteger(0, CHART_COLOR_BACKGROUND, (color) 0x1E1E1E);
+    ChartSetInteger(0, CHART_COLOR_FOREGROUND, clrGainsboro);
+    ChartSetInteger(0, CHART_COLOR_GRID, clrDarkSlateGray);
+    ChartSetInteger(0, CHART_COLOR_ASK, clrDimGray);
+    ChartSetInteger(0, CHART_COLOR_BID, clrDimGray);
+
+    ChartSetInteger(0, CHART_COLOR_CANDLE_BULL, clrGainsboro);
+    ChartSetInteger(0, CHART_COLOR_CANDLE_BEAR, clrGainsboro);
+    ChartSetInteger(0, CHART_COLOR_CHART_UP, clrGainsboro);
+    ChartSetInteger(0, CHART_COLOR_CHART_DOWN, clrGainsboro);
+
+    ChartSetInteger(0, CHART_SHIFT, true);
+    ChartSetDouble(0, CHART_SHIFT_SIZE, 18);
+    ChartSetInteger(0, CHART_SHOW_TICKER, false);
+    ChartSetInteger(0, CHART_SHOW_OHLC, false);
+    ChartSetInteger(0, CHART_SHOW_GRID, false);
+    ChartSetInteger(0, CHART_SHOW_BID_LINE, true);
+    ChartSetInteger(0, CHART_SHOW_ASK_LINE, true);
+    ChartSetInteger(0, CHART_SHOW_LAST_LINE, false);
+    ChartSetInteger(0, CHART_SHOW_VOLUMES, true);
+    ChartSetInteger(0, CHART_COLOR_VOLUME, clrYellow);
+    ChartSetInteger(0, CHART_SHOW_OBJECT_DESCR, true);
+    ChartSetInteger(0, CHART_SHOW_TRADE_LEVELS, true);
+    ChartSetInteger(0, CHART_SHOW_TRADE_HISTORY, false);
+    ChartSetInteger(0, CHART_SHOW_ONE_CLICK, false);
+    ChartSetInteger(0, CHART_SCALE, 3);
+
+    ChartRedraw(0);
+    //ChartNavigate(0, CHART_END, 0);
+}
+
+bool GetTradeRectBounds(double & rectLow, double & rectHigh) {
+    bool found = false;
+    rectLow = DBL_MAX;
+    rectHigh = -DBL_MAX;
+
+    string rects[] = {
+        RECT_TP,
+        RECT_SL
+    };
+
+    for (int i = 0; i < ArraySize(rects); i++) {
+        if (ObjectFind(0, rects[i]) < 0)
+            continue;
+
+        double p1 = ObjectGetDouble(0, rects[i], OBJPROP_PRICE, 0);
+        double p2 = ObjectGetDouble(0, rects[i], OBJPROP_PRICE, 1);
+
+        rectLow = MathMin(rectLow, MathMin(p1, p2));
+        rectHigh = MathMax(rectHigh, MathMax(p1, p2));
+
+        found = true;
+    }
+
+    return found;
+}
+
+void SetFixedScale(double headMargin = 50.0, double tailMargin = 50.0) {
+    int visibleBars = (int) ChartGetInteger(0, CHART_VISIBLE_BARS, 0);
+    if (visibleBars <= 0) visibleBars = 300;
+
+    int hi = iHighest(_Symbol, 0, MODE_HIGH, visibleBars, 0);
+    int lo = iLowest(_Symbol, 0, MODE_LOW, visibleBars, 0);
+    if (hi < 0 || lo < 0) return;
+
+    double candleHigh = iHigh(_Symbol, 0, hi);
+    double candleLow = iLow(_Symbol, 0, lo);
+
+    // --------------------------------------
+    // 🔑 TRADE RECTANGLE AWARE SCALING
+    // --------------------------------------
+    double rectLow, rectHigh;
+    bool hasRects = GetTradeRectBounds(rectLow, rectHigh);
+
+    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+    double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+
+    // Base bounds
+    double finalHigh = hasRects ? MathMax(candleHigh, rectHigh) : candleHigh;
+    double finalLow = hasRects ? MathMin(candleLow, rectLow) : candleLow;
+
+    // 🔑 LIVE PRICE SAFETY (always visible)
+    if (hasRects) {
+        finalHigh = MathMax(finalHigh, ask);
+        finalLow = MathMin(finalLow, bid);
+    }
+
+    double range = finalHigh - finalLow;
+    if (range <= 0) return;
+
+    double padTop, padBot;
+
+    if (hasRects) {
+        // Direction-aware trade scaling
+        if (rectHigh > candleHigh) {
+            // TP above (BUY)
+            padTop = range * 0.02;
+            padBot = range * 0.08;
+        } else if (rectLow < candleLow) {
+            // TP below (SELL)
+            padTop = range * 0.08;
+            padBot = range * 0.02;
+        } else {
+            // Fallback (should rarely happen)
+            padTop = range * 0.03;
+            padBot = range * 0.03;
+        }
+    } else {
+        // Normal chart mode
+        padTop = range * (headMargin / 100.0);
+        padBot = range * (tailMargin / 100.0);
+    }
+
+    ChartSetInteger(0, CHART_SCALEFIX, true);
+    ChartSetDouble(0, CHART_FIXED_MAX, finalHigh + padTop);
+    ChartSetDouble(0, CHART_FIXED_MIN, finalLow - padBot);
+
+    ChartRedraw();
+}
+
+void SetButtonColor(string name, color back, color text, color border = clrBlack) {
+    if (ObjectFind(0, name) < 0) return;
+
+    ObjectSetInteger(0, name, OBJPROP_BGCOLOR, back);
+    ObjectSetInteger(0, name, OBJPROP_COLOR, text);
+    ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, border);
+}
+void SetButtonFont(string name, int size = 13, bool bold = true) {
+    if (ObjectFind(0, name) < 0) return;
+
+    ObjectSetInteger(0, name, OBJPROP_FONTSIZE, size);
+    ObjectSetString(0, name, OBJPROP_FONT, "Arial Bold");
+}
+
+//====================================================================
+//  EVENT HANDLERS
+//====================================================================
+int OnInit() {
+    SetChartTheme();
+
+    int x = UI_X_POS;
+    int y = UI_Y_START - UI_HEIGHT; // Move symbol one row ABOVE the panel
+    int w = UI_WIDTH;
+    int h = UI_HEIGHT;
+    int half = UI_WIDTH / 2;
+
+    //--- Symbol label as button-style (non-clickable)
+    string symTxt = _Symbol;
+    symTxt = CleanSymbol(_Symbol);
+    CreateButton(SYMBOL_BTN, symTxt, x, y, w, h);
+    ObjectSetInteger(0, SYMBOL_BTN, OBJPROP_STATE, false);
+    ObjectSetInteger(0, SYMBOL_BTN, OBJPROP_HIDDEN, false);
+
+    //--- Main panel
+    y = UI_Y_START;
+
+    CreateButton(BUY_BTN, "BUY", x, y, w, h);
+    y += h;
+
+    CreateButton(EOB_BTN, "EOB", x, y, half, h);
+    CreateButton(BUYVOL_BTN, "BVol", x + half, y, half, h);
+    y += h;
+
+    CreateEdit(LOT_EDIT, x, y, w, h, DoubleToString(g_lot, GetVolumeDigits()));
+    ObjectSetInteger(0, LOT_EDIT, OBJPROP_READONLY, LotMode != MANUAL_LOT);
+    y += h;
+
+    // --- LOT ENGINE
+    if (LotMode != MANUAL_LOT) {
+        ObjectSetInteger(0, LOT_EDIT, OBJPROP_BGCOLOR, clrSilver);
+        ObjectSetInteger(0, LOT_EDIT, OBJPROP_COLOR, clrBlack);
+    } else {
+        ObjectSetInteger(0, LOT_EDIT, OBJPROP_BGCOLOR, clrWhite);
+        ObjectSetInteger(0, LOT_EDIT, OBJPROP_COLOR, clrBlack);
+    }
+
+    CreateButton(SELL_BTN, "SELL", x, y, w, h);
+    y += h;
+
+    CreateButton(EOS_BTN, "EOS", x, y, half, h);
+    CreateButton(SELLVOL_BTN, "SVol", x + half, y, half, h);
+    y += h;
+
+    CreateButton(BAL_BTN, "Balance", x, y, w, h);
+    ObjectSetString(0, BAL_BTN, OBJPROP_TEXT, DoubleToString(LoadStoredBalance(), 0));
+    y += h;
+
+    CreateButton(PnL_BTN, "0.00", x, y, w, h);
+    SetButtonColor(PnL_BTN, clrDimGray, clrWhite);
+    y += h;
+
+    CreateButton(EXIT_BTN, "EXIT", x, y, w, h);
+    y += h;
+
+    // --- SIG background (full height)
+    CreateButton(SIG_BG, "", x, y, w, h);
+    ObjectSetInteger(0, SIG_BG, OBJPROP_STATE, false);
+    SetButtonColor(SIG_BG, clrGold, clrGold);
+    ObjectSetInteger(0, SIG_BG, OBJPROP_HIDDEN, false);
+
+    // --- SIG indicator (half height, centered vertically)
+    int sigH = h / 2;
+    int sigY = y + (h - sigH) / 2;
+
+    CreateButton(SIG_BTN, "•", x, sigY, w, sigH);
+    ObjectSetInteger(0, SIG_BTN, OBJPROP_STATE, false);
+
+    // advance layout cursor
+    y += h;
+
+    //--- Restore snapshot & decide whether to clear HEDZ on init
+    ulong curTickets[];
+    double curVolumes[];
+    GetCurrentSnapshot(curTickets, curVolumes);
+    LoadSnapshotFromFile(g_last_tickets, g_last_volumes);
+
+    if (SnapshotChanged(g_last_tickets, g_last_volumes, curTickets, curVolumes)) {
+        closeBuyStops();
+        closeSellStops();
+    }
+
+    //--- Replace old snapshot with new snapshot safely
+    int cnt = ArraySize(curTickets);
+    ArrayResize(g_last_tickets, cnt);
+    ArrayResize(g_last_volumes, cnt);
+
+    for (int i = 0; i < cnt; i++) {
+        g_last_tickets[i] = curTickets[i];
+        g_last_volumes[i] = curVolumes[i];
+    }
+
+    SaveSnapshotToFile(g_last_tickets, g_last_volumes);
+
+    //--- Initialize ATR
+    if (UseDynamicATR) SetDynamicTP_SL();
+
+    //--- Initial scale (only on live chart)
+    if (!MQLInfoInteger(MQL_TESTER) && !g_pendingScreenshot) {
+        SetFixedScale();
+        ChartSetInteger(0, CHART_SHIFT, true);
+        ChartSetDouble(0, CHART_SHIFT_SIZE, 18);
+    }
+
+
+    // COLORS & FONTS
+    SetButtonColor(SYMBOL_BTN, clrDarkSlateGray, clrWhite);
+    SetButtonColor(BUY_BTN, clrGreen, clrWhite);
+    SetButtonColor(EOB_BTN, clrDimGray, clrWhite);
+    SetButtonColor(SELL_BTN, clrFireBrick, clrWhite);
+    SetButtonColor(EOS_BTN, clrDimGray, clrWhite);
+    SetButtonColor(BAL_BTN, clrDodgerBlue, clrWhite);
+    SetButtonColor(EXIT_BTN, clrOrangeRed, clrWhite);
+    SetButtonColor(BUYVOL_BTN, clrDimGray, clrWhite);
+    SetButtonColor(SELLVOL_BTN, clrDimGray, clrWhite);
+
+    SetButtonFont(SYMBOL_BTN, 13);
+    SetButtonFont(BUY_BTN, 13);
+    SetButtonFont(EOB_BTN, 13);
+    SetButtonFont(SELL_BTN, 13);
+    SetButtonFont(EOS_BTN, 13);
+    SetButtonFont(BAL_BTN, 13);
+    SetButtonFont(EXIT_BTN, 13);
+    SetButtonFont(BUYVOL_BTN, 13);
+    SetButtonFont(SELLVOL_BTN, 13);
+    SetButtonFont(LOT_EDIT, 13);
+    SetButtonFont(PnL_BTN, 13);
+
+    // neutral state
+    SetButtonColor(SIG_BTN, clrDimGray, clrWhite);
+
+    // non-clickable
+    ObjectSetInteger(0, SIG_BTN, OBJPROP_STATE, false);
+
+    SetButtonFont(SIG_BTN, 15);
+
+    UpdateSignalDisplay();
+    //DrawSignalCandleOverlay();
+
+    //SendTelegram(TG_BOT_ID, "CoTrader started on " + _Symbol);
+
+    RebuildTradesFromOpenPositions();
+    EventSetTimer(1);
+
+    return INIT_SUCCEEDED;
+}
+string SignalToText(SignalState s) {
+    if (s == SIG_STRONG_BUY) return "STRONG BUY";
+    if (s == SIG_BUY) return "BUY";
+    if (s == SIG_SELL) return "SELL";
+    if (s == SIG_STRONG_SELL) return "STRONG SELL";
+    return "NEUTRAL";
+}
+
+//--------------------------------------------------------------------
+void OnDeinit(const int reason) {
+    ObjectDelete(0, LOT_EDIT);
+    ObjectDelete(0, BUY_BTN);
+    ObjectDelete(0, SELL_BTN);
+    ObjectDelete(0, BAL_BTN);
+    ObjectDelete(0, EXIT_BTN);
+    ObjectDelete(0, BUYVOL_BTN);
+    ObjectDelete(0, SELLVOL_BTN);
+    ObjectDelete(0, SYMBOL_BTN);
+    ObjectDelete(0, EOB_BTN);
+    ObjectDelete(0, EOS_BTN);
+    ObjectDelete(0, PnL_BTN);
+    ObjectDelete(0, SIG_BTN);
+    ObjectDelete(0, SIG_BG);
+    ObjectDelete(0, DYN_UP_LINE);
+    ObjectDelete(0, DYN_DN_LINE);
+
+    EventKillTimer();
+}
+
+//--------------------------------------------------------------------
+
+bool SendScreenshotToWebhook(const string file) {
+    int h = FileOpen(file, FILE_READ | FILE_BIN);
+    if (h == INVALID_HANDLE) {
+        Print("❌ Screenshot file open failed");
+        return false;
+    }
+
+    uchar img[];
+    FileReadArray(h, img);
+    FileClose(h);
+
+    string url =
+        WEBHOOK_URL +
+        "?secret=HEDZ2026" +
+        "&tx=" + g_tx;
+
+    string headers = "Content-Type: image/jpeg\r\n";
+
+    uchar result[];
+    string resp;
+
+    Print("Screenshot bytes:", ArraySize(img));
+
+    ResetLastError();
+    int res = WebRequest(
+        "POST",
+        url,
+        headers,
+        20000,
+        img,
+        result,
+        resp
+    );
+
+    Print("📷 Screenshot HTTP=", res, " err=", GetLastError());
+    return (res != -1);
+}
+
+int g_screenshotAttempts = 0;
+
+#define EXIT_MARKER "EXIT_MARKER_X"
+input int ExitLabelOffsetBars = 5;
+
+void DrawExitMarker(double price,
+    const string text) {
+    datetime t =
+        GetChartRightEdgeTime() +
+        PeriodSeconds(PERIOD_CURRENT) * ExitLabelOffsetBars;
+
+    ObjectDelete(0, EXIT_MARKER);
+
+    ObjectCreate(0, EXIT_MARKER, OBJ_TEXT, 0, t, price);
+    ObjectSetString(0, EXIT_MARKER, OBJPROP_TEXT, text);
+    ObjectSetInteger(0, EXIT_MARKER, OBJPROP_COLOR, clrYellow);
+    ObjectSetInteger(0, EXIT_MARKER, OBJPROP_FONTSIZE, 23);
+    ObjectSetString(0, EXIT_MARKER, OBJPROP_FONT, "Segoe UI Black");
+    ObjectSetInteger(0, EXIT_MARKER, OBJPROP_ANCHOR, ANCHOR_CENTER);
+    ObjectSetInteger(0, EXIT_MARKER, OBJPROP_BACK, false);
+    ObjectSetInteger(0, EXIT_MARKER, OBJPROP_SELECTABLE, false);
+}
+datetime GetChartRightEdgeTime() {
+    int firstVisible = (int) ChartGetInteger(0, CHART_FIRST_VISIBLE_BAR, 0);
+    int visibleBars = (int) ChartGetInteger(0, CHART_VISIBLE_BARS, 0);
+
+    if (firstVisible < 0 || visibleBars <= 0)
+        return TimeCurrent();
+
+    int lastVisible = firstVisible - visibleBars + 1;
+    if (lastVisible < 0)
+        lastVisible = 0;
+
+    return iTime(_Symbol, PERIOD_CURRENT, lastVisible) +
+        PeriodSeconds(PERIOD_CURRENT);
+}
+
+bool g_rebuildAfterExit = false;
+
+void OnTimer() {
+    if (g_triggerF7) {
+        g_triggerF7 = false;
+
+        keybd_event(VK_F7, 0, 0, 0);
+        Sleep(50);
+        keybd_event(VK_F7, 0, KEYEVENTF_KEYUP, 0);
+        SetCursorPos(0, 0);
+    }
+
+    if (!g_pendingScreenshot)
+        return;
+
+    if (GetTickCount() - g_pendingSinceMS < 900)
+        return;
+
+    ChartRedraw();
+
+    bool sentText = false;
+    bool sentImg = false;
+
+    if (g_pendingMessage != "")
+        sentText = SendAlertToWebhook(g_pendingMessage);
+
+    // Try screenshot
+    string shot = TakeChartScreenshot();
+    if (shot != "")
+        sentImg = SendScreenshotToWebhook(shot);
+
+    // 🔑 ADD THIS BLOCK HERE
+    if (sentText && !sentImg) {
+        g_screenshotAttempts++;
+
+        // stop retrying after 10 attempts
+        if (g_screenshotAttempts > 10) {
+            Print("⚠ Screenshot failed too many times. Cancelling retry.");
+            g_pendingScreenshot = false;
+            g_pendingMessage = "";
+        }
+
+        return;
+    }
+
+    if (sentText && sentImg) {
+        ObjectDelete(0, BTN_EXIT);
+        ObjectDelete(0, EXIT_MARKER);
+        g_pendingScreenshot = false;
+        g_pendingMessage = "";
+
+        if (GetVolumeActionText() == "EXIT") {
+            ResetEngine();
+        } else {
+            RebuildTradesFromOpenPositions();
+        }
+
+        if (!MQLInfoInteger(MQL_TESTER))
+            SetFixedScale();
+    }
+
+}
+
+void ResetCursorOnly(const string btnName) {
+    SetCursorPos(0, 0);
+    ResetButton(btnName);
+}
+void TriggerF7WithReset(const string btnName) {
+    g_triggerF7 = true;
+    EventSetTimer(1);
+    ResetButton(btnName);
+}
+
+int CountBuyPositions() {
+    int count = 0;
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong t = PositionGetTicket(i);
+        if (!PositionSelectByTicket(t)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+        if ((ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY)
+            count++;
+    }
+    return count;
+}
+
+int CountSellPositions() {
+    int count = 0;
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong t = PositionGetTicket(i);
+        if (!PositionSelectByTicket(t)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+        if ((ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL)
+            count++;
+    }
+    return count;
+}
+
+string CleanSymbol(string sym) {
+    int len = StringLen(sym);
+
+    // remove trailing non-alphanumeric chars
+    while (len > 0) {
+        ushort c = StringGetCharacter(sym, len - 1);
+
+        if ((c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9'))
+            break;
+
+        len--;
+    }
+
+    // remove common broker suffix like 'm'
+    if (len > 0 && StringGetCharacter(sym, len - 1) == 'm')
+        len--;
+
+    if (len <= 0)
+        return sym;
+
+    return StringSubstr(sym, 0, len);
+}
+
+ulong g_processedDeals[];
+
+struct TradeRecord {
+    ulong posId;
+    double entry;
+    string dir;
+    int index;
+};
+
+TradeRecord g_trades[];
+int g_buyIndex = 0;
+int g_sellIndex = 0;
+
+void OnTradeTransaction(
+    const MqlTradeTransaction & trans,
+        const MqlTradeRequest & req,
+            const MqlTradeResult & res) {
+
+    if (ArraySize(g_processedDeals) > 5000) {
+        ArrayResize(g_processedDeals, 0);
+    }
+    if (trans.type != TRADE_TRANSACTION_DEAL_ADD)
+        return;
+
+    ulong deal = trans.deal;
+    if (deal == 0)
+        return;
+
+    // select the deal
+    if (!HistoryDealSelect(deal))
+        return;
+
+    string symbol =
+        HistoryDealGetString(deal, DEAL_SYMBOL);
+
+    if (symbol != _Symbol)
+        return;
+
+    ulong posId =
+        (ulong) HistoryDealGetInteger(deal, DEAL_POSITION_ID);
+
+    ENUM_DEAL_ENTRY entryType =
+        (ENUM_DEAL_ENTRY) HistoryDealGetInteger(deal, DEAL_ENTRY);
+
+    ENUM_DEAL_TYPE dealType =
+        (ENUM_DEAL_TYPE) HistoryDealGetInteger(deal, DEAL_TYPE);
+
+    double price =
+        HistoryDealGetDouble(deal, DEAL_PRICE);
+
+    // ================= ENTRY CAPTURE =================
+    if (entryType == DEAL_ENTRY_IN) {
+        for (int i = 0; i < ArraySize(g_trades); i++)
+            if (g_trades[i].posId == posId)
+                return;
+
+        int sz = ArraySize(g_trades);
+        ArrayResize(g_trades, sz + 1);
+
+        g_trades[sz].posId = posId;
+        g_trades[sz].entry = price;
+
+        if (dealType == DEAL_TYPE_BUY) {
+            g_buyIndex++;
+            g_trades[sz].dir = "BUY";
+            g_trades[sz].index = g_buyIndex;
+        } else {
+            g_sellIndex++;
+            g_trades[sz].dir = "SELL";
+            g_trades[sz].index = g_sellIndex;
+        }
+
+        return;
+    }
+
+    // ================= EXIT CAPTURE =================
+    if (entryType != DEAL_ENTRY_OUT &&
+        entryType != DEAL_ENTRY_OUT_BY)
+        return;
+
+    // 🔑 prevent duplicate processing of SAME DEAL
+    for (int k = 0; k < ArraySize(g_processedDeals); k++)
+        if (g_processedDeals[k] == deal)
+            return;
+
+    int ds = ArraySize(g_processedDeals);
+    ArrayResize(g_processedDeals, ds + 1);
+    g_processedDeals[ds] = deal;
+
+    double pnl =
+        HistoryDealGetDouble(deal, DEAL_PROFIT) +
+        HistoryDealGetDouble(deal, DEAL_SWAP) +
+        HistoryDealGetDouble(deal, DEAL_COMMISSION);
+
+    for (int i = 0; i < ArraySize(g_trades); i++) {
+        if (g_trades[i].posId == posId) {
+            string msg =
+                "/history " +
+                CleanSymbol(_Symbol) + " " +
+                g_trades[i].dir + " " +
+                DoubleToString(g_trades[i].entry, _Digits) + " " +
+                DoubleToString(price, _Digits) + " " +
+                DoubleToString(pnl, 2) + " " +
+                TimeToString(TimeCurrent(), TIME_DATE | TIME_MINUTES);
+
+            SendAlertToWebhook(msg);
+            BroadcastStateWithScreenshot();
+            break;
+        }
+    }
+
+}
+
+void RebuildTradesFromOpenPositions() {
+    ArrayResize(g_trades, 0);
+
+    // 🔥 RESET INDEX COUNTERS (VERY IMPORTANT)
+    g_buyIndex = 0;
+    g_sellIndex = 0;
+
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong ticket = PositionGetTicket(i);
+        if (!PositionSelectByTicket(ticket)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+        int sz = ArraySize(g_trades);
+        ArrayResize(g_trades, sz + 1);
+
+        g_trades[sz].posId =
+            (ulong) PositionGetInteger(POSITION_IDENTIFIER);
+
+        g_trades[sz].entry =
+            PositionGetDouble(POSITION_PRICE_OPEN);
+
+        ENUM_POSITION_TYPE type =
+            (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
+
+        // 🔥 ASSIGN INDEX NUMBERS
+        if (type == POSITION_TYPE_BUY) {
+            g_buyIndex++;
+            g_trades[sz].dir = "BUY";
+            g_trades[sz].index = g_buyIndex; // B1 B2 B3...
+        } else {
+            g_sellIndex++;
+            g_trades[sz].dir = "SELL";
+            g_trades[sz].index = g_sellIndex; // S1 S2 S3...
+        }
+    }
+
+    Print("🔄 Rebuilt trades from open positions: ",
+        ArraySize(g_trades));
+}
+
+//====================================================================
+//  COMMANDS
+//====================================================================
+bool BUY() {
+
+    if (LotMode == MANUAL_LOT)
+        ReadLotFromEdit();
+
+    closeBuyStops();
+    closeSellStops();
+
+    double lot = ClampLot(g_lot);
+
+    if (!trade.Buy(lot, _Symbol))
+        return false;
+
+    return true;
+}
+
+bool SELL() {
+
+    if (LotMode == MANUAL_LOT)
+        ReadLotFromEdit();
+
+    closeBuyStops();
+    closeSellStops();
+
+    double lot = ClampLot(g_lot);
+
+    if (!trade.Sell(lot, _Symbol))
+        return false;
+
+    return true;
+}
+
+bool EXIT() {
+        ObjectDelete(0, BTN_EXIT);
+        ObjectDelete(0, EXIT_MARKER);
+        ObjectDelete(0, BTN_ENTRY);
+    if (CountBuyPositions() == 0 && CountSellPositions() == 0)
+        return false;
+
+    // 🔥 SNAPSHOT BEFORE CLOSE
+    CaptureExitState();
+
+    QuickCloseAllForSymbol();
+    Sleep(200);
+    CloseAllForSymbol();
+
+    return true;
+}
+
+bool EOB() {
+
+    if (CountBuyPositions() == 0) {
+        Print("EOB ignored — no open Buy positions.");
+        return false;
+    }
+    double px = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+    ClearTPButtons();
+
+    CreatePriceLabelRight(
+        BTN_EXIT,
+        "EXIT " + DoubleToString(px, _Digits),
+        px,
+        clrWhite
+    );
+
+    datetime exitStart = TimeCurrent();
+    closeOldBuy();
+    Sleep(250);
+
+    if (GetVolumeActionText() == "HEDGED") {
+        Print("⚠ SELL suppressed — system is hedged");
+        return true;
+    }
+
+    return true;
+}
+
+bool EOS() {
+    if (CountSellPositions() == 0) {
+        Print("EOS ignored — no open Sell positions.");
+        return false;
+    }
+
+    double px = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+    ClearTPButtons();
+
+    CreatePriceLabelRight(
+        BTN_EXIT,
+        "EXIT " + DoubleToString(px, _Digits),
+        px,
+        clrWhite
+    );
+
+    datetime exitStart = TimeCurrent();
+    closeOldSell();
+    Sleep(250);
+
+    return true;
+}
+
+void ResetEngine() {
+    Print("🔄 FULL ENGINE RESET");
+
+    // ---- Clear trade records
+    ArrayResize(g_trades, 0);
+    g_buyIndex = 0;
+    g_sellIndex = 0;
+
+    // ---- Clear processed deals
+    ArrayResize(g_processedDeals, 0);
+
+    // ---- Clear snapshot memory
+    ArrayResize(g_last_tickets, 0);
+    ArrayResize(g_last_volumes, 0);
+    SaveSnapshotToFile(g_last_tickets, g_last_volumes);
+
+    // ---- Clear mirror logic
+    g_lastMirroredPosition = 0;
+
+    // ---- Clear rectangles & labels
+    ClearTradeRectangles();
+    ObjectDelete(0, BTN_EXIT);
+    ObjectDelete(0, EXIT_MARKER);
+
+    // ---- Reset exit snapshot memory
+    g_hasExitSnapshot = false;
+    g_exitBuys = 0;
+    g_exitSells = 0;
+    g_exitLot = 0;
+    g_exitPnL = 0;
+    g_exitPrice = 0;
+    closeBuyStops();
+    closeSellStops();
+
+    Print("✅ ENGINE RESET COMPLETE");
+}
+
+bool g_hasExitSnapshot = false;
+int g_exitBuys = 0;
+int g_exitSells = 0;
+double g_exitLot = 0;
+double g_exitPnL = 0;
+double g_exitPrice = 0;
+
+void CaptureExitState() {
+
+    double buyVol = SumBuyVolume();
+    double sellVol = SumSellVolume();
+
+    // Direction-aware exit price
+    if (buyVol > sellVol)
+        g_exitPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+    else if (sellVol > buyVol)
+        g_exitPrice = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+    else
+        g_exitPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+
+    g_exitBuys = CountBuyPositions();
+    g_exitSells = CountSellPositions();
+    g_exitLot = buyVol + sellVol;
+    g_exitPnL = GetSymbolFloatingPnL();
+
+    g_hasExitSnapshot = true;
+
+    Print("EXIT Snapshot Stored:",
+        " Buys=", g_exitBuys,
+        " Sells=", g_exitSells,
+        " Lot=", g_exitLot,
+        " PnL=", g_exitPnL,
+        " Price=", g_exitPrice);
+}
+
+//====================================================================
+//  OnChartEvent
+//====================================================================
+void OnChartEvent(const int id,
+    const long & l,
+        const double & d,
+            const string & s) {
+    if (id != CHARTEVENT_OBJECT_CLICK) return;
+
+    if (s == BUY_BTN) {
+        ResetCursorOnly(s);
+        BUY();
+    } else if (s == SELL_BTN) {
+        ResetCursorOnly(s);
+        SELL();
+    } else if (s == EOB_BTN) {
+        ResetCursorOnly(s);
+        EOB();
+    } else if (s == EOS_BTN) {
+        ResetCursorOnly(s);
+        EOS();
+    } else if (s == EXIT_BTN) {
+        ResetCursorOnly(s);
+        EXIT();
+    } else if (s == BUYVOL_BTN || s == SELLVOL_BTN) {
+        ResetCursorOnly(s);
+    } else if (s == SYMBOL_BTN) {
+        TriggerF7WithReset(s);
+    } else if (s == SIG_BTN) {
+        ResetCursorOnly(s);
+    } else if (s == BTN_TP1) {
+        ResetCursorOnly(s);
+        Print("TP1 clicked");
+    } else if (s == BTN_TP2) {
+        ResetCursorOnly(s);
+        Print("TP2 clicked");
+    } else if (s == BTN_TP3) {
+        ResetCursorOnly(s);
+        Print("TP3 clicked");
+    } else if (s == BTN_SL) {
+        ResetCursorOnly(s);
+        Print("STOP clicked");
+    }
+}
+
+double GetTotalSymbolLot() {
+    return SumBuyVolume() + SumSellVolume();
+}
+
+// ======================================================
+// SEND 50 M15 CANDLES (ULTRA STABLE STREAM)
+// ======================================================
+void SendLivePrice() {
+    static datetime lastPriceSend = 0;
+
+    if (TimeCurrent() - lastPriceSend < 5)
+        return;
+
+    lastPriceSend = TimeCurrent();
+
+    string sym = CleanSymbol(_Symbol);
+    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+
+    // ------------------------------------------
+    // 🔥 BUILD LAST 50 M15 CANDLES STRING
+    // format:
+    // time,o,h,l,c;time,o,h,l,c;...
+    // ------------------------------------------
+
+    string candles = "";
+
+    int total = 50;
+
+    for (int i = total - 1; i >= 0; i--) {
+        datetime t = iTime(_Symbol, PERIOD_M15, i);
+        double o = iOpen(_Symbol, PERIOD_M15, i);
+        double h = iHigh(_Symbol, PERIOD_M15, i);
+        double l = iLow(_Symbol, PERIOD_M15, i);
+        double c = iClose(_Symbol, PERIOD_M15, i);
+
+        if (t <= 0)
+            continue;
+
+        candles +=
+            IntegerToString((int) t) + "," +
+            DoubleToString(o, _Digits) + "," +
+            DoubleToString(h, _Digits) + "," +
+            DoubleToString(l, _Digits) + "," +
+            DoubleToString(c, _Digits);
+
+        if (i > 0)
+            candles += ";";
+    }
+string positionsPayload = "";
+int count = 0;
+
+for (int i = 0; i < PositionsTotal(); i++)
+{
+    ulong ticket = PositionGetTicket(i);
+    if (ticket == 0)
+        continue;
+
+    if (!PositionSelectByTicket(ticket))
+        continue;
+
+    string psym = PositionGetString(POSITION_SYMBOL);
+
+    if (psym != _Symbol)
+        continue;
+
+    double lot = PositionGetDouble(POSITION_VOLUME);
+    double pnl = PositionGetDouble(POSITION_PROFIT);
+
+    if (count > 0)
+        positionsPayload += ";";
+
+    positionsPayload +=
+        CleanSymbol(psym) + "," +
+        DoubleToString(lot, 2) + "," +
+        DoubleToString(pnl, 2);
+
+    count++;
+}
+
+    // ------------------------------------------
+    // 🔥 FINAL MESSAGE
+    // ------------------------------------------
+string msg =
+    "/tick " +
+    sym + "|" +
+    DoubleToString(bid, _Digits) + "|" +
+    positionsPayload + "|" +
+    candles;
+
+    SendAlertToWebhook(msg);
+}
+
+string GetLatestTradeIndexLabel() {
+    datetime latestTime = 0;
+    string label = "";
+
+    for (int p = 0; p < PositionsTotal(); p++) {
+        ulong t = PositionGetTicket(p);
+        if (!PositionSelectByTicket(t)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+        datetime openTime =
+            (datetime) PositionGetInteger(POSITION_TIME);
+
+        if (openTime > latestTime) {
+            latestTime = openTime;
+
+            ulong posId =
+                (ulong) PositionGetInteger(POSITION_IDENTIFIER);
+
+            for (int i = 0; i < ArraySize(g_trades); i++) {
+                if (g_trades[i].posId == posId) {
+                    label =
+                        (g_trades[i].dir == "BUY" ? "B" : "S") +
+                        IntegerToString(g_trades[i].index);
+                    break;
+                }
+            }
+        }
+    }
+
+    return label;
+}
+
+string GetHedgedLabel() {
+    string b = "";
+    string s = "";
+
+    for (int i = ArraySize(g_trades) - 1; i >= 0; i--) {
+        if (b == "" && g_trades[i].dir == "BUY")
+            b = "B" + IntegerToString(g_trades[i].index);
+
+        if (s == "" && g_trades[i].dir == "SELL")
+            s = "S" + IntegerToString(g_trades[i].index);
+
+        if (b != "" && s != "")
+            break;
+    }
+
+    if (b != "" && s != "")
+        return b + "+" + s;
+
+    return "";
+}
+
+datetime g_lastExposurePush = 0;
+
+void BroadcastStateWithScreenshot() {
+    static string lastSignature = "";
+
+    string state = GetVolumeActionText();
+
+    string stateLabel = state;
+
+    string latestIdx = GetLatestTradeIndexLabel();
+
+    if (latestIdx != "") {
+        // extract side from index
+        string latestSide =
+            StringSubstr(latestIdx, 0, 1) == "B" ? "BUY" : "SELL";
+
+        stateLabel = latestSide + " " + latestIdx;
+    }
+
+    if (state == "HEDGED") {
+        string hedge = GetHedgedLabel();
+        if (hedge != "")
+            stateLabel = "HEDGED " + hedge;
+    }
+
+    string signature =
+        state + "|" +
+        IntegerToString(CountBuyPositions()) + "|" +
+        IntegerToString(CountSellPositions()) + "|" +
+        DoubleToString(GetTotalSymbolLot(), 2);
+
+    bool structuralChange = (signature != lastSignature);
+
+    // 🔥 FORCE EXIT BROADCAST
+    if (state != "EXIT" && !structuralChange)
+        return;
+
+    lastSignature = signature;
+
+    string sym = CleanSymbol(_Symbol);
+    double price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+
+    int buys = CountBuyPositions();
+    int sells = CountSellPositions();
+    double pnl = GetSymbolFloatingPnL();
+
+    double entry = 0;
+    bool isBuy = false;
+
+    // get latest real trade entry
+    if (!GetLatestPosition(entry, isBuy))
+        entry = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+
+    double R = GetRiskDistancePrice();
+
+    double tp = entry;
+    double sl = entry;
+
+    if (state == "BUY") {
+        tp = entry + R;
+        sl = entry - R;
+    } else if (state == "SELL") {
+        tp = entry - R;
+        sl = entry + R;
+    } else if (state == "HEDGED") {
+        entry = price;
+        tp = entry;
+        sl = entry;
+    }
+
+    // =====================================================
+    // 🔥 NEW: Get REAL latest position side + volume
+    // =====================================================
+    double posLot = 0.0;
+    string side = "NONE";
+
+    datetime latestTime = 0;
+
+    for (int i = 0; i < PositionsTotal(); i++) {
+        ulong t = PositionGetTicket(i);
+        if (!PositionSelectByTicket(t)) continue;
+        if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+        datetime openTime =
+            (datetime) PositionGetInteger(POSITION_TIME);
+
+        if (openTime > latestTime) {
+            latestTime = openTime;
+            posLot = PositionGetDouble(POSITION_VOLUME);
+
+            ENUM_POSITION_TYPE type =
+                (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
+
+            side = (type == POSITION_TYPE_BUY) ? "BUY" : "SELL";
+        }
+    }
+
+    string ordersPayload = "";
+
+    for (int i = 0; i < ArraySize(g_trades); i++) {
+        ulong posId = g_trades[i].posId;
+
+        // verify position still exists
+        bool alive = false;
+        double lots = 0;
+        double profit = 0;
+
+        for (int p = 0; p < PositionsTotal(); p++) {
+            ulong t = PositionGetTicket(p);
+            if (!PositionSelectByTicket(t)) continue;
+            if (PositionGetString(POSITION_SYMBOL) != _Symbol) continue;
+
+            ulong checkId =
+                (ulong) PositionGetInteger(POSITION_IDENTIFIER);
+
+            if (checkId == posId) {
+                alive = true;
+                lots = PositionGetDouble(POSITION_VOLUME);
+                profit = PositionGetDouble(POSITION_PROFIT);
+                break;
+            }
+        }
+
+        if (!alive)
+            continue;
+
+        string label =
+            (g_trades[i].dir == "BUY" ? "B" : "S") +
+            IntegerToString(g_trades[i].index);
+
+        ordersPayload +=
+            label + "," +
+            DoubleToString(g_trades[i].entry, _Digits) + "," +
+            DoubleToString(lots, 2) + "," +
+            DoubleToString(profit, 2) + ";";
+    }
+
+    // =====================================================
+    // 🔥 EXTENDED MACHINE PAYLOAD
+    // =====================================================
+    string machine =
+        sym + "|" +
+        state + "|" +
+        DoubleToString(entry, _Digits) + "|" +
+        DoubleToString(sl, _Digits) + "|" +
+        DoubleToString(tp, _Digits) + "|" +
+        DoubleToString(GetTotalSymbolLot(), 2) + "|" +
+        IntegerToString(buys) + "|" +
+        IntegerToString(sells) + "|" +
+        DoubleToString(posLot, 2) + "|" +
+        "SIDE=" + side + "|" +
+        "ORDERS=" + ordersPayload;
+
+    string rich =
+        "/alert " + machine + "\n";
+
+    // --------------------------------------------------
+    // 🔥 EXIT CAPTION ENGINE
+    // --------------------------------------------------
+    if (state == "EXIT") {
+        double totalLot = g_hasExitSnapshot ? g_exitLot : GetTotalSymbolLot();
+        double totalPnL = g_hasExitSnapshot ? g_exitPnL : GetSymbolFloatingPnL();
+
+        int buys = g_hasExitSnapshot ? g_exitBuys : CountBuyPositions();
+        int sells = g_hasExitSnapshot ? g_exitSells : CountSellPositions();
+
+        rich += "<b>" + sym + " EXIT</b>\n";
+
+        rich +=
+            "<b>EP:</b> " + DoubleToString(g_exitPrice, _Digits) +
+            "\nLots: " + DoubleToString(totalLot, 2) +
+            " | Buys: " + IntegerToString(buys) +
+            " | Sells: " + IntegerToString(sells) +
+            " | PL: " + DoubleToString(totalPnL, 2);
+
+        if (g_flatTransitionPending) {
+            ScheduleSignalScreenshot(rich);
+            g_flatTransitionPending = false;
+        }
+
+        g_hasExitSnapshot = false;
+        return;
+    }
+
+    // --------------------------------------------------
+    // 🔥 HEADER
+    // --------------------------------------------------
+    if (state == "HEDGED")
+        rich += "<b>" + sym + " HEDGED</b>\n";
+    else
+        rich += "<b>" + sym + " " + side + "</b>\n";
+
+    string hedgeLabel = (side == "BUY" ? "SS" : "BS");
+
+    // --------------------------------------------------
+    // 🔥 BUY FORMAT
+    // --------------------------------------------------
+    if (state == "BUY") {
+        rich +=
+            "<b>TP:</b> " + DoubleToString(tp, _Digits) +
+            " | <b>PnL:</b> " + DoubleToString(pnl, 2) +
+
+            "\n<b>" + latestIdx + ":</b> " +
+            DoubleToString(entry, _Digits) +
+            " | <b>Lot:</b> " + DoubleToString(posLot, 2) +
+            " | <b>Buys:</b> " + IntegerToString(buys) +
+
+            "\n<b>" + hedgeLabel + ":</b> " +
+            DoubleToString(sl, _Digits) +
+            " | <b>Lot:</b> " + DoubleToString(posLot, 2) +
+            " | <b>Sells:</b> " + IntegerToString(sells);
+    }
+
+    // --------------------------------------------------
+    // 🔥 SELL FORMAT
+    // --------------------------------------------------
+    else if (state == "SELL") {
+        rich +=
+            "<b>" + hedgeLabel + ":</b> " +
+            DoubleToString(sl, _Digits) +
+            " | <b>Lot:</b> " + DoubleToString(posLot, 2) +
+            " | <b>Buys:</b> " + IntegerToString(buys) +
+
+            "\n<b>" + latestIdx + ":</b> " +
+            DoubleToString(entry, _Digits) +
+            " | <b>Lot:</b> " + DoubleToString(posLot, 2) +
+            " | <b>Sells:</b> " + IntegerToString(sells) +
+
+            "\n<b>TP:</b> " + DoubleToString(tp, _Digits) +
+            " | <b>PnL:</b> " + DoubleToString(pnl, 2);
+    }
+
+    // --------------------------------------------------
+    // 🔥 HEDGED FORMAT
+    // --------------------------------------------------
+    else if (state == "HEDGED") {
+        if (side == "BUY") {
+            rich +=
+                "<b>TP:</b> " +
+                DoubleToString(tp, _Digits) +
+                " | <b>PnL:</b> " +
+                DoubleToString(pnl, 2) +
+
+                "\n<b>" + latestIdx + ":</b> " +
+                DoubleToString(entry, _Digits) +
+                " | <b>Lot:</b> " +
+                DoubleToString(posLot, 2) +
+                " | <b>Buys:</b> " +
+                IntegerToString(buys) +
+
+                "\n<b>SS:</b> " +
+                DoubleToString(sl, _Digits) +
+                " | <b>Lot:</b> " +
+                DoubleToString(posLot, 2) +
+                " | <b>Sells:</b> " +
+                IntegerToString(sells);
+        } else {
+            rich +=
+                "<b>BS:</b> " +
+                DoubleToString(sl, _Digits) +
+                " | <b>Lot:</b> " +
+                DoubleToString(posLot, 2) +
+                " | <b>Buys:</b> " +
+                IntegerToString(buys) +
+
+                "\n<b>" + latestIdx + ":</b> " +
+                DoubleToString(entry, _Digits) +
+                " | <b>Lot:</b> " +
+                DoubleToString(posLot, 2) +
+                " | <b>Sells:</b> " +
+                IntegerToString(sells) +
+
+                "\n<b>TP:</b> " +
+                DoubleToString(tp, _Digits) +
+                " | <b>PnL:</b> " +
+                DoubleToString(pnl, 2);
+        }
+    }
+
+    // 🔥 ONE pipeline for everything
+    ScheduleSignalScreenshot(rich);
+}
+
+bool g_wasFlat = true;
+bool g_flatTransitionPending = false;
+
+//====================================================================
+//  OnTick
+//====================================================================
+void OnTick() {
+    UpdateSignalDisplay();
+    //DrawSignalCandleOverlay();
+
+    // --- Dynamic visual reference lines
+    //UpdateDynamicReferenceLines();
+
+    //--- Update UI
+    UpdateVolumeButtons();
+    UpdateBalanceLabel();
+    UpdatePnLButton();
+
+    // --- LOT ENGINE
+    if (LotMode != MANUAL_LOT) {
+        g_lot = AutoLotFromBalance();
+
+        if (IsObjectPresent(LOT_EDIT))
+            ObjectSetString(0, LOT_EDIT, OBJPROP_TEXT,
+                DoubleToString(g_lot, GetVolumeDigits()));
+        ObjectSetInteger(0, LOT_EDIT, OBJPROP_BGCOLOR, clrSilver);
+        ObjectSetInteger(0, LOT_EDIT, OBJPROP_COLOR, clrBlack);
+    } else {
+        ObjectSetInteger(0, LOT_EDIT, OBJPROP_BGCOLOR, clrWhite);
+        ObjectSetInteger(0, LOT_EDIT, OBJPROP_COLOR, clrBlack);
+    }
+
+    //--- Snapshot
+    ulong curTickets[];
+    double curVolumes[];
+    GetCurrentSnapshot(curTickets, curVolumes);
+
+    SendLivePrice();
+    // --------------------------------------------------
+    // FLAT STATE DETECTION (STRUCTURAL TRANSITION)
+    // --------------------------------------------------
+    bool isFlat = (ArraySize(curTickets) == 0);
+
+    if (!isFlat) {
+        g_lastLiveLot = GetTotalSymbolLot();
+        g_lastLiveBuys = CountBuyPositions();
+        g_lastLiveSells = CountSellPositions();
+        g_lastLivePnL = GetSymbolFloatingPnL();
+    }
+
+    if (isFlat && !g_wasFlat) {
+
+        g_exitLot = 0.0;
+        for (int i = 0; i < ArraySize(g_last_volumes); i++)
+            g_exitLot += g_last_volumes[i];
+
+        // 🔥 VERY IMPORTANT
+        g_exitPrice = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+
+        g_hasExitSnapshot = true;
+
+        ClearTradeRectangles();
+        ObjectDelete(0, BTN_EXIT);
+        ObjectDelete(0, EXIT_MARKER);
+
+        CreatePriceLabelRight(
+            BTN_ENTRY, // same positioning engine as B1 label
+            "X EXIT " + DoubleToString(g_exitPrice, _Digits),
+            g_exitPrice,
+            clrYellow
+        );
+
+        ChartRedraw();
+
+        g_flatTransitionPending = true;
+        BroadcastStateWithScreenshot();
+
+        g_lastMirroredPosition = 0;
+
+        ArrayResize(g_last_tickets, 0);
+        ArrayResize(g_last_volumes, 0);
+        SaveSnapshotToFile(g_last_tickets, g_last_volumes);
+
+        g_wasFlat = true;
+        return;
+    }
+
+    //--- ATR refresh on new M15 bar
+    if (IsNewBarM15() && UseDynamicATR) SetDynamicTP_SL();
+
+    //--- Chart scale adjust on new M5 bar (live only)
+    if (IsNewBarM5() && !MQLInfoInteger(MQL_TESTER) && !g_pendingScreenshot)
+        SetFixedScale();
+
+    //--- HEDZ engine
+    ManageStopsOnTick();
+    InvalidateFarStops();
+    UpdatePriceLabelsRight();
+    
+    if (isFlat)
+        return;
+
+    g_wasFlat = false;
+
+    // If snapshot changed → new position opened or closed
+    if (SnapshotChanged(g_last_tickets, g_last_volumes, curTickets, curVolumes)) {
+        closeBuyStops();
+        closeSellStops();
+        RebuildTradesFromOpenPositions();
+
+        double entry;
+        bool isBuy;
+
+        string state = GetVolumeActionText();
+
+        if (state == "BUY" || state == "SELL") {
+            if (GetLatestPosition(entry, isBuy))
+                DrawTradeRectangles(entry, isBuy);
+        } else {
+            ClearTradeRectangles();
+        }
+
+        if (!MQLInfoInteger(MQL_TESTER)) {
+            SetFixedScale();
+        }
+
+        BroadcastStateWithScreenshot();
+
+    }
+
+    // Replace old snapshot with new snapshot safely
+    int cnt = ArraySize(curTickets);
+    ArrayResize(g_last_tickets, cnt);
+    ArrayResize(g_last_volumes, cnt);
+
+    for (int i = 0; i < cnt; i++) {
+        g_last_tickets[i] = curTickets[i];
+        g_last_volumes[i] = curVolumes[i];
+    }
+
+    SaveSnapshotToFile(g_last_tickets, g_last_volumes);
+
+}

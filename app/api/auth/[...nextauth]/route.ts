@@ -1,5 +1,6 @@
 import NextAuth, { type NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
+import { cookies } from "next/headers"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -15,11 +16,19 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user }) {
       try {
         if (user?.email) {
+
+          // ✅ cookies() is async in Next 16
+          const cookieStore = await cookies()
+
+          const deviceId =
+            cookieStore.get("fx_device")?.value || ""
+
           await fetch(process.env.GAS_AUTH_URL!, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              email: user.email
+              email: user.email,
+              device_id: deviceId
             }),
           })
         }

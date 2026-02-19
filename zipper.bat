@@ -19,8 +19,9 @@ set ZIP_NAME=%BACKUP_DIR%\backup_%NOW%.zip
 
 echo Creating backup...
 
+REM Added GAS.txt and MT5.txt to the path list below
 powershell -NoProfile -Command ^
-"Compress-Archive -Path 'app','components' -DestinationPath '%ZIP_NAME%' -Force"
+"Compress-Archive -Path 'app','components','GAS.txt','MT5.txt' -DestinationPath '%ZIP_NAME%' -Force"
 
 echo Backup created:
 echo %ZIP_NAME%

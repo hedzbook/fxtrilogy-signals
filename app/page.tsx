@@ -7,6 +7,7 @@ import VerticalSymbolButton from "@/components/VerticalSymbolButton"
 import PairDetail from "@/components/PairDetail"
 import AuthButton from "@/components/AuthButton"
 import { useSession } from "next-auth/react"
+import PublicLanding from "@/components/PublicLanding"
 
 const PAIRS = [
   "XAUUSD",
@@ -139,14 +140,9 @@ useEffect(() => {
   }, [uiSignals, pairData])
 
   if (status === "loading") return null
-
   if (!session) {
-    return (
-      <main className="h-screen bg-black flex items-center justify-center text-white">
-        <AuthButton />
-      </main>
-    )
-  }
+  return <PublicLanding />
+}
 
   if (subActive === null) return null
 

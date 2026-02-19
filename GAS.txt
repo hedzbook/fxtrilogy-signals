@@ -1,0 +1,1692 @@
+// ======================================================
+// CONFIG
+// ======================================================
+const TOKEN = PropertiesService.getScriptProperties().getProperty("BOT_TOKEN");
+const WEBHOOK_SECRET = PropertiesService.getScriptProperties().getProperty("WEBHOOK_SECRET");
+const SPREADSHEET_ID = "1jMlONsIzwXyf_j9y96HkeIwRh0OynfTUak3MvHrJLyo";
+const SHEET_NAME = "USERS_LIST";
+const ADMIN_CHAT_ID = "7115081072";
+
+const PAIRS = [
+    "XAUUSD",
+    "BTCUSD",
+    "ETHUSD",
+    "EURUSD",
+    "GBPUSD",
+    "USDJPY",
+    "AUDUSD",
+    "USDCHF",
+    "USOIL"
+];
+
+function getPairPerformanceCache() {
+    const raw = PropertiesService
+        .getScriptProperties()
+        .getProperty("PAIR_PERFORMANCE")
+    return raw ? JSON.parse(raw) : {}
+}
+
+function setPairPerformanceCache(data) {
+    PropertiesService
+        .getScriptProperties()
+        .setProperty("PAIR_PERFORMANCE", JSON.stringify(data))
+}
+
+function getLiveSignals() {
+    const raw = PropertiesService
+        .getScriptProperties()
+        .getProperty("LIVE_SIGNALS");
+
+    let data = raw ? JSON.parse(raw) : {};
+
+    // 🔥 AUTO-CLEAN INVALID KEYS
+    Object.keys(data).forEach(k => {
+        const key = (k || "").toUpperCase().trim();
+        if (PAIRS.indexOf(key) === -1) {
+            delete data[k];
+        }
+    });
+
+    return data;
+}
+
+function setLiveSignals(data) {
+    PropertiesService
+        .getScriptProperties()
+        .setProperty("LIVE_SIGNALS", JSON.stringify(data));
+}
+
+function getOrderHistory() {
+    const raw = PropertiesService
+        .getScriptProperties()
+        .getProperty("ORDER_HISTORY")
+    return raw ? JSON.parse(raw) : {}
+}
+
+function setOrderHistory(data) {
+    PropertiesService
+        .getScriptProperties()
+        .setProperty("ORDER_HISTORY", JSON.stringify(data))
+}
+
+function appendHistoryRow(instrument, direction, entry, exit, pnl, time) {
+
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID)
+        .getSheetByName("ORDER_HISTORY")
+
+    sheet.appendRow([
+        time,
+        instrument,
+        direction,
+        entry,
+        exit,
+        pnl
+    ])
+}
+
+function getMarketNotes() {
+    const raw = PropertiesService
+        .getScriptProperties()
+        .getProperty("MARKET_NOTES")
+    return raw ? JSON.parse(raw) : {}
+}
+
+function setMarketNotes(data) {
+    PropertiesService
+        .getScriptProperties()
+        .setProperty("MARKET_NOTES", JSON.stringify(data))
+}
+
+function handleAuthUser(email, deviceId) {
+
+    const sheet = SpreadsheetApp
+        .openById(SPREADSHEET_ID)
+        .getSheetByName("USERS_AUTH");
+
+    const rows = sheet.getDataRange().getValues();
+
+    for (let i = 1; i < rows.length; i++) {
+
+        const existingEmail = String(rows[i][0]).toLowerCase();
+        const existingDevice = String(rows[i][7] || "");
+
+        // If same email → do nothing
+        if (existingEmail === email.toLowerCase()) {
+            return;
+        }
+
+        // 🚨 DEVICE ALREADY USED → BLOCK NEW TRIAL
+        if (existingDevice && existingDevice === deviceId) {
+            return;
+        }
+    }
+
+    // Create 7-day free trial
+    const now = new Date();
+    const expiry = new Date(now);
+    expiry.setDate(expiry.getDate() + 7);
+
+    sheet.appendRow([
+        email,
+        now,
+        expiry,
+        "free",
+        1,
+        "",
+        "",
+        deviceId
+    ]);
+}
+
+function checkAuthUser(email) {
+
+    const sheet = SpreadsheetApp
+        .openById(SPREADSHEET_ID)
+        .getSheetByName("USERS_AUTH");
+
+    const rows = sheet.getDataRange().getValues();
+    const now = new Date();
+
+    for (let i = 1; i < rows.length; i++) {
+
+        const rowEmail = String(rows[i][0]).toLowerCase();
+        if (rowEmail !== email.toLowerCase()) continue;
+
+        const expiry = new Date(rows[i][2]);
+        const status = String(rows[i][3]).toLowerCase();
+
+        const active =
+            status === "paid" ||
+            (status === "free" && expiry > now);
+
+        return {
+            active: active,
+            status: status,
+            expiry: expiry
+        };
+    }
+
+    return {
+        active: false
+    };
+}
+
+// ======================================================
+// SINGLE WEBHOOK ENTRY - WRITE pipeline (MT5 → GAS)
+// ======================================================
+function doPost(e) {
+    const ack = ok();
+
+    try {
+        if (!e || !e.postData || !e.postData.contents) return ack;
+        // ===============================
+        // GOOGLE AUTH SYNC
+        // ===============================
+        try {
+            const contentType = e.postData.type || "";
+            if (contentType.indexOf("application/json") !== -1) {
+
+                const data = JSON.parse(e.postData.contents);
+
+                if (data.email) {
+                    handleAuthUser(data.email, data.device_id || "");
+                    return ack;
+                }
+
+            }
+        } catch (err) {}
+
+        const type = e.postData.type || "";
+
+        // ==================================================
+        // TELEGRAM (JSON)
+        // ==================================================
+        if (type.indexOf("application/json") !== -1) {
+            const data = JSON.parse(e.postData.contents);
+            handleTelegram(data);
+            return ack;
+        }
+
+        // ==================================================
+        // MT5 SCREENSHOT (RAW BINARY) — MUST COME FIRST
+        // ==================================================
+        if (
+            type.indexOf("application/json") === -1 &&
+            type.indexOf("application/x-www-form-urlencoded") === -1
+        ) {
+            const secret = (e.parameter && e.parameter.secret || "").trim();
+            if (secret !== WEBHOOK_SECRET) return ack;
+
+            // 🔑 THE FIX — binary-safe read
+            const bytes = e.postData.getBytes();
+            if (!bytes || bytes.length < 2000) return ack;
+
+            const blob = Utilities.newBlob(
+                bytes,
+                "image/jpeg",
+                "chart.jpg"
+            );
+
+            const tx = (e.parameter && e.parameter.tx) || "";
+            dispatchImageToUsers(blob, tx);
+
+            return ack; // ⛔ DO NOT FALL THROUGH
+        }
+
+        // ==================================================
+        // MT5 TEXT ALERT (FORM URLENCODED)
+        // ==================================================
+        const params = {};
+        e.postData.contents.split("&").forEach(p => {
+            const idx = p.indexOf("=");
+            if (idx === -1) return;
+            const k = decodeURIComponent(p.substring(0, idx));
+            const v = decodeURIComponent(p.substring(idx + 1));
+            params[k] = v;
+        });
+
+        if ((params.secret || "").trim() !== WEBHOOK_SECRET) return ack;
+
+        // ============================
+        // MARKET NOTES UPDATE (ADD HERE)
+        // ============================
+        if (params.notes) {
+            updateMarketNotes(params.notes);
+            return ack;
+        }
+
+        // normal signal flow
+        if (!params.message) return ack;
+
+        handleSignal(params.message.trim(), params.tx);
+
+        return ack;
+
+    } catch (err) {
+        send(ADMIN_CHAT_ID, "❌ GAS ERROR\n<code>" + err + "</code>");
+        return ack;
+    }
+}
+
+// ======================================================
+// READ pipeline  (WebApp → GAS)
+// ======================================================
+
+function doGet(e) {
+
+    const secret = (e.parameter.secret || "").trim();
+
+    // 🔐 Require secret for ALL web access
+    if (secret !== WEBHOOK_SECRET) {
+        return ContentService
+            .createTextOutput("unauthorized");
+    }
+
+    // ===============================
+    // EMAIL SUBSCRIPTION CHECK
+    // ===============================
+    if (e.parameter.email) {
+
+        const result = checkAuthUser(e.parameter.email);
+
+        return ContentService
+            .createTextOutput(JSON.stringify(result))
+            .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ===============================
+    // SIGNAL READ
+    // ===============================
+    const signals = getLiveSignals();
+    const pair = (e.parameter.pair || "").toUpperCase();
+
+    if (pair) {
+
+        const data = getPairDataFromSheet(pair);
+        const notes = getMarketNotes();
+        const orders = signals[pair]?.orders || [];
+
+        return ContentService
+            .createTextOutput(JSON.stringify({
+                signals,
+                history: data.history,
+                performance: data.performance,
+                notes: notes[pair] || "",
+                orders: orders
+            }))
+            .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService
+        .createTextOutput(JSON.stringify({
+            signals
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ======================================================
+// TELEGRAM HANDLER
+// ======================================================
+function handleTelegram(data) {
+
+    const cache = CacheService.getScriptCache();
+
+    const updKey = data.update_id ? String(data.update_id) : Utilities.getUuid();
+    if (cache.get(updKey)) return;
+    cache.put(updKey, "1", 300);
+
+    if (data.callback_query) {
+        handleCallback(data.callback_query);
+        return;
+    }
+
+    if (!data.message || !data.message.text) return;
+
+    const chatId = String(data.message.chat.id);
+    const text = data.message.text.trim();
+    const from = data.message.from || {};
+
+    // CORE ENTRY
+    if (text === "/start") return onStart(chatId, from);
+
+    // OPTIONAL TOOL
+    if (text === "/myid") return onMyId(chatId);
+
+    // UI ROUTING (emoji safe)
+    if (text) {
+        if (text.includes("PAIR")) return onInstruments(chatId);
+        if (text.includes("PLUS")) return onSubscription(chatId);
+        if (text.includes("READ")) return onBooks(chatId);
+        if (text.includes("HELP")) return onSupport(chatId);
+    }
+
+    // ADMIN
+    if (chatId === ADMIN_CHAT_ID && text.startsWith("/activate")) return onActivate(text);
+    if (chatId === ADMIN_CHAT_ID && text.startsWith("/deactivate")) return onDeactivate(text);
+    if (chatId === ADMIN_CHAT_ID && text.startsWith("/sendall")) return onBroadcast(text);
+    if (chatId === ADMIN_CHAT_ID && text.startsWith("/reply")) return onAdminReply(text);
+}
+
+function onInstruments(chatId) {
+
+    let selected = getTempInstruments(chatId);
+
+    // if temp not exists load from sheet
+    if (!selected) {
+        selected = getUserInstruments(chatId);
+        setTempInstruments(chatId, selected);
+    }
+
+    sendRich(
+        chatId,
+        "🔔 <b>Select Trading Instruments</b>\n\nToggle pairs then press Confirm.",
+        buildInstrumentKeyboard(selected)
+    );
+}
+
+function buildInstrumentKeyboard(selected) {
+
+    const rows = [];
+    let currentRow = [];
+
+    // build 2 buttons per row automatically
+    PAIRS.forEach((pair, index) => {
+
+        currentRow.push({
+            text: toggleText(pair, selected),
+            callback_data: "inst_tmp_" + pair
+        });
+
+        if (currentRow.length === 2) {
+            rows.push(currentRow);
+            currentRow = [];
+        }
+    });
+
+    // push remaining button if odd count
+    if (currentRow.length) rows.push(currentRow);
+
+    // add confirm/cancel row
+    rows.push([{
+            text: "✅ Confirm",
+            callback_data: "inst_confirm"
+        },
+        {
+            text: "❌ Cancel",
+            callback_data: "inst_cancel"
+        }
+    ]);
+
+    return {
+        inline_keyboard: rows
+    };
+}
+
+function toggleText(inst, selected) {
+    return (selected.indexOf(inst) !== -1 ? "🟢 " : "⚪ ") + inst;
+}
+
+function onSignals(chatId) {
+
+    if (!isUserAllowed(chatId)) {
+        sendExpired(chatId);
+        return;
+    }
+
+    send(
+        chatId,
+        "📊 <b>Open Signals Panel</b>\n\n" +
+        "Tap the <b>Menu</b> button below the chat to launch live signals."
+    );
+}
+
+let _sheet = null;
+
+function mustGetSheet() {
+    if (!_sheet) {
+        _sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+    }
+    return _sheet;
+}
+
+function onActivate(text) {
+    const parts = text.trim().split(/\s+/);
+    if (parts.length < 3) {
+        send(ADMIN_CHAT_ID, "Usage: /activate <chatId> <months>");
+        return;
+    }
+
+    const chatId = parts[1];
+    const months = parseInt(parts[2], 10);
+
+    if (isNaN(months) || months <= 0) {
+        send(ADMIN_CHAT_ID, "❌ Invalid months value");
+        return;
+    }
+
+    const sheet = mustGetSheet();
+    const rows = sheet.getDataRange().getValues();
+    const now = new Date();
+
+    for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]).split(".")[0] === chatId) {
+
+            const currentExpiry = new Date(rows[i][4]);
+            const currentStatus = String(rows[i][5]).toLowerCase();
+
+            // 🔑 BASE DATE DECISION
+            let baseDate;
+
+            if (currentStatus === "paid" && currentExpiry > now) {
+                // Active user → extend
+                baseDate = currentExpiry;
+            } else {
+                // Expired or free → start fresh
+                baseDate = now;
+            }
+
+            const newExpiry = new Date(baseDate);
+            newExpiry.setMonth(newExpiry.getMonth() + months);
+
+            // Update sheet
+            sheet.getRange(i + 1, 5).setValue(newExpiry); // expiry
+            sheet.getRange(i + 1, 6).setValue("paid"); // status
+            sheet.getRange(i + 1, 7).setValue(months); // last_payment_months
+
+            // Notify user
+            send(
+                chatId,
+                "✅ <b>Subscription Activated</b>\n\n" +
+                "Plan: " + months + " month(s)\n" +
+                "Valid till: " + formatDate(newExpiry)
+            );
+
+            // Notify admin
+            send(
+                ADMIN_CHAT_ID,
+                "✅ Activated " + chatId +
+                " | +" + months + " month(s)" +
+                " | Expiry: " + formatDate(newExpiry)
+            );
+
+            return;
+        }
+    }
+
+    send(ADMIN_CHAT_ID, "❌ Chat ID not found: " + chatId);
+}
+
+function onDeactivate(text) {
+    const parts = text.trim().split(/\s+/);
+    if (parts.length < 2) return;
+
+    const chatId = parts[1];
+    const sheet = mustGetSheet();
+    const rows = sheet.getDataRange().getValues();
+    const now = new Date();
+
+    for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]).split(".")[0] === chatId) {
+
+            // HARD RESET
+            sheet.getRange(i + 1, 5).setValue(now); // expiry → now
+            sheet.getRange(i + 1, 6).setValue("expired"); // status
+            sheet.getRange(i + 1, 7).setValue(0); // last_payment_months
+            sheet.getRange(i + 1, 8).setValue(""); // instruments (clear)
+
+            send(chatId, "⛔ <b>Your subscription has been deactivated</b>");
+
+            send(
+                ADMIN_CHAT_ID,
+                "⛔ Deactivated " + chatId +
+                " | months=0 | instruments cleared"
+            );
+            return;
+        }
+    }
+
+    send(ADMIN_CHAT_ID, "❌ Chat ID not found: " + chatId);
+}
+
+function activateAuthUser(email, months) {
+
+    const sheet = SpreadsheetApp
+        .openById(SPREADSHEET_ID)
+        .getSheetByName("USERS_AUTH");
+
+    const rows = sheet.getDataRange().getValues();
+    const now = new Date();
+
+    for (let i = 1; i < rows.length; i++) {
+
+        if (String(rows[i][0]).toLowerCase() !== email.toLowerCase()) continue;
+
+        const currentExpiry = new Date(rows[i][2]);
+        const currentStatus = String(rows[i][3]).toLowerCase();
+
+        let baseDate =
+            (currentStatus === "paid" && currentExpiry > now) ?
+            currentExpiry :
+            now;
+
+        const newExpiry = new Date(baseDate);
+        newExpiry.setMonth(newExpiry.getMonth() + months);
+
+        sheet.getRange(i + 1, 3).setValue(newExpiry); // expiry
+        sheet.getRange(i + 1, 4).setValue("paid"); // status
+        sheet.getRange(i + 1, 5).setValue(months); // plan_months
+
+        return;
+    }
+}
+
+function onBroadcast(text) {
+    const msg = text.replace("/sendall", "").trim();
+    if (!msg) return;
+
+    const rows = mustGetSheet().getDataRange().getValues();
+
+    for (let i = 1; i < rows.length; i++) {
+        const chatId = String(rows[i][0]).split(".")[0];
+        send(chatId, "📢 <b>Announcement</b>\n\n" + msg);
+    }
+
+    send(ADMIN_CHAT_ID, "✅ Broadcast sent");
+}
+
+function onAdminReply(text) {
+    const parts = text.split(" ");
+    if (parts.length < 3) return;
+
+    const chatId = parts[1];
+    const msg = parts.slice(2).join(" ");
+
+    send(chatId, "💬 <b>Support</b>\n\n" + msg);
+    send(ADMIN_CHAT_ID, "✅ Reply sent to " + chatId);
+}
+
+function updateMarketNotes(text) {
+
+    // EXPECTED FORMAT:
+    // XAUUSD|Your 120 word commentary here...
+
+    const idx = text.indexOf("|")
+    if (idx === -1) return
+
+    const pair = text.substring(0, idx).toUpperCase()
+    const note = text.substring(idx + 1)
+
+    if (PAIRS.indexOf(pair) === -1) return
+
+    const notes = getMarketNotes()
+    notes[pair] = note
+
+    setMarketNotes(notes)
+}
+
+// ======================================================
+// CALLBACK HANDLER
+// ======================================================
+function handleCallback(cq) {
+    const chatId = String(cq.message.chat.id);
+    answerCallback(cq.id);
+    const cache = CacheService.getScriptCache();
+
+    if (cq.data === "paid_confirm") {
+        if (cache.get("paid_" + chatId)) return;
+        cache.put("paid_" + chatId, "1", 3600);
+
+        send(ADMIN_CHAT_ID, "💳 Payment confirmation\nChat ID: <code>" + chatId + "</code>");
+        sendRich(chatId,
+            "✅ <b>Payment confirmation query received</b>\n\nYour subscription will be activated shortly.",
+            null
+        );
+        return;
+    }
+
+    if (cq.data.startsWith("support_")) {
+        send(ADMIN_CHAT_ID,
+            "🆘 Support request\nType: " + cq.data + "\nChat ID: " + chatId
+        );
+        sendRich(chatId,
+            "✅ <b>Support request sent</b>\n\nOur team will review and respond if needed.",
+            null
+        );
+    }
+
+    if (cq.data.startsWith("inst_tmp_")) {
+
+        const inst = cq.data.replace("inst_tmp_", "");
+        let list = getTempInstruments(chatId) || [];
+
+        if (list.indexOf(inst) !== -1) {
+            list = list.filter(x => x !== inst);
+        } else {
+            list.push(inst);
+        }
+
+        setTempInstruments(chatId, list);
+
+        editInstrumentPanel(chatId, cq.message.message_id, list);
+        return;
+    }
+
+    if (cq.data === "inst_confirm") {
+
+        const list = getTempInstruments(chatId) || [];
+        saveInstrumentsToSheet(chatId, list);
+        clearTempInstruments(chatId);
+
+        editFinalInstrumentMessage(
+            chatId,
+            cq.message.message_id,
+            list
+        );
+        return;
+    }
+
+    if (cq.data === "inst_cancel") {
+        clearTempInstruments(chatId);
+
+        const payload = {
+            chat_id: chatId,
+            message_id: cq.message.message_id,
+            text: "❌ <b>Selection cancelled</b>",
+            parse_mode: "HTML"
+        };
+
+        UrlFetchApp.fetch(
+            "https://api.telegram.org/bot" + TOKEN + "/editMessageText", {
+                method: "post",
+                contentType: "application/json",
+                payload: JSON.stringify(payload)
+            }
+        );
+        return;
+    }
+
+}
+
+function getUserInstruments(chatId) {
+    const rows = mustGetSheet().getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]).split(".")[0] === chatId) {
+            const v = rows[i][7]; // column H
+            return v ? String(v).split(",") : [];
+        }
+    }
+    return [];
+}
+
+function editInstrumentPanel(chatId, messageId, selected) {
+
+    const payload = {
+        chat_id: chatId,
+        message_id: messageId,
+        text: "📌 <b>Select Trading Instruments</b>\n\nToggle pairs then press Confirm.",
+        parse_mode: "HTML",
+        reply_markup: buildInstrumentKeyboard(selected)
+    };
+
+    UrlFetchApp.fetch(
+        "https://api.telegram.org/bot" + TOKEN + "/editMessageText", {
+            method: "post",
+            contentType: "application/json",
+            payload: JSON.stringify(payload)
+        }
+    );
+}
+
+function getTempInstruments(chatId) {
+    const cache = CacheService.getScriptCache();
+    const raw = cache.get("inst_tmp_" + chatId);
+    if (!raw) return null;
+    return raw.split(",");
+}
+
+function setTempInstruments(chatId, list) {
+    const cache = CacheService.getScriptCache();
+    cache.put("inst_tmp_" + chatId, list.join(","), 600); // 10 minutes
+}
+
+function clearTempInstruments(chatId) {
+    const cache = CacheService.getScriptCache();
+    cache.remove("inst_tmp_" + chatId);
+}
+
+function saveInstrumentsToSheet(chatId, list) {
+
+    const sheet = mustGetSheet();
+    const rows = sheet.getDataRange().getValues();
+
+    for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]).split(".")[0] === chatId) {
+            sheet.getRange(i + 1, 8).setValue(list.join(","));
+            return;
+        }
+    }
+}
+
+function editFinalInstrumentMessage(chatId, messageId, list) {
+
+    const payload = {
+        chat_id: chatId,
+        message_id: messageId,
+        text: "✅ <b>Saved</b>\n\nYou will receive alerts only for:\n<b>" +
+            (list.length ? list.join(", ") : "None") +
+            "</b>",
+        parse_mode: "HTML"
+    };
+
+    UrlFetchApp.fetch(
+        "https://api.telegram.org/bot" + TOKEN + "/editMessageText", {
+            method: "post",
+            contentType: "application/json",
+            payload: JSON.stringify(payload)
+        }
+    );
+}
+
+// ======================================================
+// START / MENU / CORE UI (UNCHANGED)
+// ======================================================
+function onStart(chatId, from) {
+    let row = getUserRow(chatId);
+    let isNew = false;
+
+    if (!row) {
+        createFreeTrial(chatId, from);
+        row = getUserRow(chatId);
+        isNew = true;
+    }
+
+    const text = isNew ?
+        "👋 <b>Welcome to FXHEDZ LIVE</b>\n\n🎉 <b>Free Trial Activated!</b>\n\n📊 You will receive:\n• BUY alerts\n• SELL alerts\n• EXIT / HEDGE alerts\n\n📅 <b>Valid till:</b> " + formatDate(row.expiry) :
+        "👋 <b>Welcome back to FXHEDZ LIVE</b>\n\n📦 <b>Subscription:</b> " +
+        row.status.toUpperCase() + "\n📅 <b>Valid till:</b> " + formatDate(row.expiry);
+
+    sendMenu(chatId, text);
+}
+
+function sendMenu(chatId, text) {
+    sendRich(chatId, text, getMainKeyboard());
+}
+
+function onStatus(chatId) {
+    if (!isUserAllowed(chatId)) {
+        sendExpired(chatId);
+        return;
+    }
+
+    const row = getUserRow(chatId);
+
+    sendMenu(
+        chatId,
+        "📊 <b>Subscription Status</b>\n\n" +
+        "Plan: " + row.status.toUpperCase() + "\n" +
+        "Valid till: " + formatDate(row.expiry)
+    );
+}
+
+function onMyId(chatId) {
+    sendRich(
+        chatId,
+        "🆔 <b>Your Telegram Chat ID</b>\n\n" +
+        "<code>" + chatId + "</code>\n\n" +
+        "This ID is used internally for subscription management.",
+        null
+    );
+}
+
+function onSubscription(chatId) {
+    const row = getUserRow(chatId);
+    const now = new Date();
+
+    let statusText;
+
+    if (!row) {
+        statusText = "Status: NOT FOUND";
+    } else if (row.status === "paid") {
+        statusText =
+            "Status: PAID\n" +
+            "Valid till: " + formatDate(row.expiry);
+    } else if (row.status === "free" && row.expiry >= now) {
+        statusText =
+            "Status: FREE TRIAL\n" +
+            "Valid till: " + formatDate(row.expiry);
+    } else {
+        statusText = "Status: EXPIRED";
+    }
+
+    sendRich(
+        chatId,
+        "💳 <b>FXHEDZ LIVE – Subscription</b>\n\n" +
+        statusText + "\n\n" +
+        "━━━━━━━━━━━━━━\n\n" +
+        "Choose a plan below 👇\n\n" +
+        "🔥 <b>6 Months</b> is most popular\n" +
+        "💎 <b>12 Months</b> is best value\n\n" +
+        "🆔 <b>Your Telegram Chat ID</b>:\n" +
+        "<code>" + chatId + "</code>\n\n" +
+        "⚠️ <b>IMPORTANT</b>\n" +
+        "Add your Chat ID in Razorpay payment notes", {
+            inline_keyboard: [
+                [{
+                        text: "1 Month · ₹999",
+                        url: "https://rzp.io/rzp/QfdiMtK"
+                    },
+                    {
+                        text: "3 Months · ₹2,699",
+                        url: "https://rzp.io/rzp/4cTq3B7l"
+                    }
+                ],
+                [{
+                        text: "6 Months · ₹4,799",
+                        url: "https://rzp.io/rzp/SRZIBEQP"
+                    },
+                    {
+                        text: "12 Months · ₹8,399",
+                        url: "https://rzp.io/rzp/jPUuZy0"
+                    }
+                ],
+                [{
+                    text: "✅ I Have Paid",
+                    callback_data: "paid_confirm"
+                }]
+            ]
+        }
+    );
+}
+
+function onSupport(chatId) {
+    sendRich(
+        chatId,
+        "🆘 <b>Support</b>\n\n" +
+        "If you need assistance, please choose one option below.\n\n" +
+        "⚠️ For faster resolution, avoid sending messages directly.", {
+            inline_keyboard: [
+                [{
+                    text: "💳 Payment Issue",
+                    callback_data: "support_payment"
+                }],
+                [{
+                    text: "⛔ Access / Subscription Issue",
+                    callback_data: "support_access"
+                }],
+                [{
+                    text: "❓ General Query",
+                    callback_data: "support_general"
+                }]
+            ]
+        }
+    );
+}
+
+function onBooks(chatId) {
+
+    sendRich(
+        chatId,
+        "📚 <b>FXHEDZ Forex Trilogy (3 book series)</b>\n\n" +
+        "Explore the official trilogy on Amazon:\n\n" +
+        "📘 The Foundation of Forex Trading\n" +
+        "📙 The Psychology of Forex Trading\n" +
+        "📗 The Strategy of Forex Trading\n\n" +
+        "Tap below to view:", {
+            inline_keyboard: [
+                [{
+                    text: "📚 View on Amazon",
+                    url: "https://www.amazon.com/dp/B0FQ11LS2Q?tag=global"
+                }]
+            ]
+        }
+    );
+}
+
+function isUserAllowed(chatId) {
+    const row = getUserRow(chatId);
+    if (!row) return false;
+    return row.status === "paid" ||
+        (row.status === "free" && row.expiry >= new Date());
+}
+
+function sendExpired(chatId) {
+    sendMenu(
+        chatId,
+        "⛔ <b>Subscription Expired</b>\n\n" +
+        "⚠️ Your access to FXHEDZ LIVE has ended.\n\n" +
+        "📅 Please renew your subscription to continue receiving:\n" +
+        "📢 BUY | SELL | EXIT / HEDGE Alerts"
+    );
+}
+
+function stripMachineHeader(text) {
+
+    const lines = text.split("\n");
+
+    if (!lines.length) return text;
+
+    const parts = lines[0].split("|");
+
+    // 🔥 remove ANY machine header >=5 segments
+    if (parts.length >= 5) {
+        lines.shift();
+    }
+
+    return lines.join("\n").trim();
+}
+
+// ======================================================
+// SIGNAL BROADCAST
+// ======================================================
+function handleSignal(msg, tx) {
+    msg = msg.trim()
+        .replace(/^\/alert\b/i, "")
+        .replace(/^\/ALERT\b/i, "")
+        .trim();
+    const cache = CacheService.getScriptCache();
+    const signals = getLiveSignals();
+    if (msg.startsWith("/history")) {
+        handleHistory(msg.replace("/history", "").trim());
+        return;
+    }
+    const firstLine = msg.split("\n")[0];
+    // =========================
+    // 🔥 MT5 LIVE CANDLE STREAM (50 candles)
+    // =========================
+    if (firstLine.startsWith("/tick")) {
+
+        const clean = firstLine.replace("/tick", "").trim();
+        const p = clean.split("|");
+
+        const instrument = (p[0] || "").toUpperCase().trim();
+        const price = p[1] || "0";
+
+        if (PAIRS.indexOf(instrument) === -1) return;
+
+        let positionsRaw = "";
+        let candlesRaw = "";
+
+        if (p.length === 4) {
+            positionsRaw = p[2] || "";
+            candlesRaw = p[3] || "";
+        } else if (p.length === 3) {
+            // no positions, only candles
+            candlesRaw = p[2] || "";
+        }
+
+        // --------------------------
+        // Parse positions
+        // --------------------------
+        let liveOrders = [];
+
+        if (positionsRaw) {
+
+            const list = positionsRaw.split(";").filter(Boolean);
+
+            list.forEach(row => {
+
+                const o = row.split(",");
+                if (o.length < 3) return;
+
+                const rowSymbol = (o[0] || "").toUpperCase().trim();
+                if (rowSymbol !== instrument) return;
+
+                liveOrders.push({
+                    id: Utilities.getUuid(),
+                    label: "",
+                    direction: "",
+                    entry: 0,
+                    lots: Number(o[1] || 0),
+                    profit: Number(o[2] || 0),
+                    time: Utilities.formatDate(new Date(), "GMT", "HH:mm:ss")
+                });
+            });
+        }
+
+        // --------------------------
+        // Parse candles
+        // --------------------------
+        let candles = [];
+
+        if (candlesRaw) {
+
+            const list = candlesRaw.split(";");
+
+            list.forEach(row => {
+
+                const c = row.split(",");
+                if (c.length < 5) return;
+
+                candles.push({
+                    time: Number(c[0]),
+                    open: Number(c[1]),
+                    high: Number(c[2]),
+                    low: Number(c[3]),
+                    close: Number(c[4])
+                });
+            });
+        }
+
+        const prevOrders = signals[instrument]?.orders || [];
+
+        const updatedOrders = prevOrders.map((order, index) => {
+            const live = liveOrders[index];
+            return {
+                ...order,
+                profit: live ? live.profit : order.profit
+            };
+        });
+
+        const updated = {
+            ...signals,
+            [instrument]: {
+                ...(signals[instrument] || {}),
+                price: price,
+                candles: candles,
+                orders: updatedOrders
+            }
+        };
+
+        setLiveSignals(updated);
+        return;
+
+    }
+
+    if (firstLine.indexOf("|") !== -1) {
+
+        const parts = firstLine.split("|");
+        const ordersField = parts[10] || "";
+        const posLots = Number(parts[8] || 0);
+
+        const sideField = parts[9] || "";
+        const orderSide = sideField.replace("SIDE=", "");
+
+        const instrument = (parts[0] || "").toUpperCase().trim();
+        if (PAIRS.indexOf(instrument) === -1) return;
+
+        const direction = parts[1].replace(/<[^>]*>/g, "");
+        const entry = parts[2];
+        const sl = parts[3];
+        const tp = parts[4];
+        const lots = parts[5];
+        const buys = parts[6];
+        const sells = parts[7];
+        // keep previous orders
+        const prevOrders = (signals[instrument]?.orders || []).slice()
+        let profit = 0;
+
+        let parsedOrders = [];
+
+        if (ordersField.startsWith("ORDERS=")) {
+
+            const raw = ordersField.replace("ORDERS=", "");
+            const list = raw.split(";").filter(Boolean);
+
+            parsedOrders = list.map(row => {
+
+                const o = row.split(",");
+
+                return {
+                    label: o[0],
+                    entry: o[1],
+                    lots: Number(o[2] || 0),
+                    profit: Number(o[3] || 0)
+                };
+            });
+        }
+
+        let newOrders = prevOrders
+
+        if (direction === "EXIT") {
+
+            // EXIT clears all
+            newOrders = []
+
+        } else {
+
+            const rawDir = parts[1].toUpperCase()
+
+            let orderDirection = rawDir
+            let hedged = false
+
+            if (rawDir === "HEDGED") {
+
+                hedged = true
+
+                // 🔥 get LAST REAL ORDER SIDE
+                const lastOrder =
+                    prevOrders.length ?
+                    prevOrders[prevOrders.length - 1] :
+                    null
+
+                if (lastOrder && lastOrder.direction) {
+
+                    // hedge = opposite of last order
+                    orderDirection =
+                        lastOrder.direction === "BUY" ?
+                        "SELL" :
+                        "BUY"
+
+                } else {
+
+                    // fallback safety
+                    orderDirection = "BUY"
+                }
+            }
+
+            newOrders = parsedOrders.map(o => ({
+                id: Utilities.getUuid(),
+                label: o.label,
+                direction: o.label.startsWith("B") ? "BUY" : "SELL",
+                hedged: direction === "HEDGED",
+                entry: o.entry,
+                lots: o.lots,
+                profit: o.profit,
+                time: Utilities.formatDate(new Date(), "GMT", "HH:mm:ss")
+            }));
+
+        }
+
+        const updated = {
+            ...signals,
+            [instrument]: {
+                ...(signals[instrument] || {}),
+                direction: direction,
+                entry: direction === "EXIT" ? null : entry,
+                sl: direction === "EXIT" ? null : sl,
+                tp: direction === "EXIT" ? null : tp,
+                price: entry,
+                lots: Number(lots || 0),
+                buys: Number(buys || 0),
+                sells: Number(sells || 0),
+                orders: newOrders
+            }
+        };
+
+        setLiveSignals(updated);
+
+        if (tx && instrument) {
+
+            // small delay ensures cache visible to parallel execution
+            Utilities.sleep(150);
+
+            cache.put(
+                "tx_" + tx,
+                JSON.stringify({
+                    instrument: instrument,
+                    text: stripMachineHeader(msg)
+                }),
+                120 // longer TTL
+            );
+        }
+        return;
+    }
+
+    const text = msg.toUpperCase();
+    const parts = text.split(/\s+/);
+
+    const instrument = parts[0] || null;
+    const direction = (parts[1] || "").replace(/<[^>]*>/g, "");
+
+    // =========================
+    // 🔥 PRICE UPDATE ENGINE
+    // =========================
+    // Handles messages like:
+    // BTCUSD 49721.3
+    if (parts.length === 2 && !(direction || "").match(/BUY|SELL|EXIT/)) {
+
+        const price = parts[1];
+
+        if (signals[instrument]) {
+
+            const updated = {
+                ...signals,
+                [instrument]: {
+                    ...(signals[instrument] || {}),
+                    price: price
+                }
+            };
+
+            setLiveSignals(updated);
+        }
+
+        return; // 🚨 IMPORTANT — stop here
+    }
+
+    // =========================
+    // 🔥 ALERT PARSER
+    // =========================
+
+    const slMatch = text.match(/SL(?:\/HEDZ)?[:\s]+([\d\.]+)/);
+    const tpMatch = text.match(/TP(?:\d)?[:\s]+([\d\.]+)/);
+    const entryMatch =
+        text.match(/PRICE[:\s]+([\d\.]+)/) ||
+        text.match(/PRICE<\/B>[:\s]*([\d\.]+)/i) ||
+        text.match(/<B>PRICE:<\/B>\s*([\d\.]+)/i);
+
+    const sl = slMatch ? slMatch[1] : null;
+    const tp = tpMatch ? tpMatch[1] : null;
+    const entry = entryMatch ? entryMatch[1] : null;
+
+    if (instrument && direction) {
+
+        const updated = {
+            ...signals,
+            [instrument]: {
+                ...(signals[instrument] || {}),
+                direction: direction,
+                entry: entry || signals[instrument]?.entry,
+                sl: direction === "HEDGED" ? null : sl,
+                tp: direction === "HEDGED" ? null : tp,
+                price: entry || signals[instrument]?.price,
+                trend: "H1 Trend Strong"
+            }
+        };
+
+        setLiveSignals(updated);
+
+    }
+
+    if (tx) {
+        cache.put(
+            "tx_" + tx,
+            JSON.stringify({
+                instrument: instrument,
+                text: stripMachineHeader(msg)
+            }),
+            60
+        );
+    }
+}
+
+function handleHistory(text) {
+
+    const parts = text.split(/\s+/)
+
+    // EXPECTED:
+    // XAUUSD SELL 4996.4 4956.7 -124.3 2026-02-13T10:22
+
+    const instrument = (parts[0] || "").toUpperCase()
+    const direction = (parts[1] || "").toUpperCase()
+
+    if (PAIRS.indexOf(instrument) === -1) return
+    if (["BUY", "SELL"].indexOf(direction) === -1) return
+
+    const entry = parts[2]
+    const exit = parts[3]
+    const pnl = parts[4]
+    const time = parts[5] || Utilities.formatDate(new Date(), "GMT", "yyyy-MM-dd'T'HH:mm")
+
+    if (!instrument || !entry || !exit) return
+
+    const cache = CacheService.getScriptCache()
+    const hash = instrument + "|" + entry + "|" + exit + "|" + time
+
+    // 🔥 duplicate protection
+    if (cache.get(hash)) return
+    cache.put(hash, "1", 30)
+
+    // ✅ WRITE TO GOOGLE SHEET (MASTER HISTORY)
+    appendHistoryRow(instrument, direction, entry, exit, pnl, time)
+
+    // OPTIONAL: keep small live cache for miniapp speed
+    const history = getOrderHistory()
+
+    if (!history[instrument]) history[instrument] = []
+
+    history[instrument].unshift({
+        direction,
+        entry,
+        exit,
+        pnl: Number(pnl),
+        time
+    })
+
+    history[instrument] = history[instrument].slice(0, 50)
+
+    setOrderHistory(history)
+
+    // ==============================
+    // 🔥 LIVE PERFORMANCE UPDATE
+    // ==============================
+
+    const perfCache = getPairPerformanceCache()
+
+    if (!perfCache[instrument]) {
+        perfCache[instrument] = {
+            trades: 0,
+            wins: 0,
+            losses: 0,
+            pnlTotal: 0,
+            profit: 0,
+            loss: 0
+        }
+    }
+
+    const p = perfCache[instrument]
+    const pnlNum = Number(pnl) || 0
+
+    p.trades++
+    p.pnlTotal += pnlNum
+
+    if (pnlNum >= 0) {
+        p.wins++
+        p.profit += pnlNum
+    } else {
+        p.losses++
+        p.loss += Math.abs(pnlNum)
+    }
+
+    p.winRate = p.trades ? (p.wins / p.trades) * 100 : 0
+    p.profitFactor = p.loss ? (p.profit / p.loss) : p.profit
+
+    setPairPerformanceCache(perfCache)
+
+}
+
+function getPairDataFromSheet(pair) {
+
+    const sheet = SpreadsheetApp
+        .openById(SPREADSHEET_ID)
+        .getSheetByName("ORDER_HISTORY")
+
+    const lastRow = sheet.getLastRow()
+    if (lastRow < 2) {
+        return {
+            history: [],
+            performance: {}
+        }
+    }
+
+    const rows = sheet.getRange(1, 1, lastRow, 6).getValues()
+
+    const history = []
+
+    let wins = 0,
+        losses = 0,
+        pnlTotal = 0,
+        profit = 0,
+        loss = 0,
+        trades = 0
+
+    for (let i = rows.length - 1; i >= 1; i--) {
+
+        if (rows[i][1] !== pair) continue
+
+        const pnl = Number(rows[i][5]) || 0
+
+        // ===== history (latest 100)
+        if (history.length < 100) {
+            history.push({
+                time: rows[i][0],
+                direction: rows[i][2],
+                entry: rows[i][3],
+                exit: rows[i][4],
+                pnl: pnl
+            })
+        }
+
+        // ===== performance
+        pnlTotal += pnl
+        trades++
+
+        if (pnl >= 0) {
+            wins++
+            profit += pnl
+        } else {
+            losses++
+            loss += Math.abs(pnl)
+        }
+    }
+
+    const winRate = trades ? (wins / trades) * 100 : 0
+    const profitFactor = loss ? (profit / loss) : profit
+
+    return {
+        history,
+        performance: {
+            trades,
+            wins,
+            losses,
+            winRate: Number(winRate.toFixed(1)),
+            pnlTotal: Number(pnlTotal.toFixed(2)),
+            profitFactor: Number(profitFactor.toFixed(2))
+        }
+    }
+}
+
+// ======================================================
+// IMAGE BROADCAST
+// ======================================================
+function dispatchImageToUsers(blob, tx) {
+    const cache = CacheService.getScriptCache();
+
+    let payload = null;
+
+    if (tx) {
+
+        // retry up to 5 times because image can arrive first
+        for (let i = 0; i < 5; i++) {
+
+            const raw = cache.get("tx_" + tx);
+
+            if (raw) {
+                payload = JSON.parse(raw);
+                break;
+            }
+
+            Utilities.sleep(250); // wait 250ms
+        }
+    }
+
+    const instrument = payload ? payload.instrument : null;
+    // ✅ ALSO UPDATE MINIAPP STATE FROM IMAGE FLOW
+    if (payload && payload.text) {
+        handleSignal(payload.text, null);
+        const parts = payload.text.trim().split(/\s+/);
+        const direction = parts.length > 1 ?
+            parts[1].toUpperCase().replace(/<[^>]*>/g, "") :
+            null;
+
+        if (instrument && direction) {
+
+            const signals = getLiveSignals();
+
+            const updated = {
+                ...signals,
+                [instrument]: {
+                    ...(signals[instrument] || {}),
+                    direction: direction,
+                    trend: "H1 Trend Strong"
+                }
+            };
+
+            setLiveSignals(updated);
+
+        }
+
+    }
+
+    const caption = payload ?
+        stripMachineHeader(payload.text) :
+        "📊 FXHEDZ Chart Snapshot";
+
+    const rows = mustGetSheet().getDataRange().getValues();
+    const now = new Date();
+
+    for (let i = 1; i < rows.length; i++) {
+        const chatId = String(rows[i][0]).split(".")[0];
+        const expiry = rows[i][4] ? new Date(rows[i][4]) : new Date(0);
+        const status = String(rows[i][5]).toLowerCase();
+        const instruments = rows[i][7] ?
+            String(rows[i][7]).split(",") : [];
+
+        if (status === "expired") continue;
+        if (status === "free" && expiry < now) continue;
+
+        // 🔑 INSTRUMENT FILTER
+        // If user selected instruments and this signal is not one of them → skip
+        if (instrument && instruments.length && instruments.indexOf(instrument) === -1) {
+            continue;
+        }
+
+        UrlFetchApp.fetch(
+            "https://api.telegram.org/bot" + TOKEN + "/sendPhoto", {
+                method: "post",
+                payload: {
+                    chat_id: chatId,
+                    photo: blob,
+                    caption: caption,
+                    parse_mode: "HTML"
+                },
+                muteHttpExceptions: true
+            }
+        );
+    }
+
+    if (tx) cache.remove("tx_" + tx);
+}
+
+function setMenuButton() {
+
+    const url = "https://api.telegram.org/bot" + TOKEN + "/setChatMenuButton";
+
+    const payload = {
+        menu_button: {
+            type: "web_app",
+            text: "🚦 Signals",
+            web_app: {
+                url: "https://fxhedz.vercel.app/"
+            }
+        }
+    };
+
+    UrlFetchApp.fetch(url, {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify(payload)
+    });
+}
+
+// ======================================================
+// UTILITIES (UNCHANGED)
+// ======================================================
+function getMainKeyboard() {
+    return {
+        keyboard: [
+            [{
+                    text: "💱 PAIR"
+                },
+                {
+                    text: "👑 PLUS"
+                },
+                {
+                    text: "📚 READ"
+                },
+                {
+                    text: "🆘 HELP"
+                }
+            ]
+        ],
+        resize_keyboard: true,
+        is_persistent: true,
+        one_time_keyboard: false
+    };
+}
+
+function getUserRow(chatId) {
+    const rows = mustGetSheet().getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]).split(".")[0] === chatId) {
+            return {
+                expiry: new Date(rows[i][4]),
+                status: String(rows[i][5]).toLowerCase()
+            };
+        }
+    }
+    return null;
+}
+
+function createFreeTrial(chatId, from) {
+    const now = new Date();
+    const expiry = new Date(now);
+    expiry.setMonth(expiry.getMonth() + 1);
+
+    mustGetSheet().appendRow([
+        chatId,
+        from.username ? "@" + from.username : "N/A",
+        from.first_name || "",
+        now,
+        expiry,
+        "free",
+        1,
+        "ETHUSD,BTCUSD,XAUUSD"
+    ]);
+}
+
+function send(chatId, text) {
+    sendRich(chatId, text, null);
+}
+
+function sendRich(chatId, text, markup) {
+    const payload = {
+        chat_id: chatId,
+        text,
+        parse_mode: "HTML",
+        reply_markup: markup ? markup : getMainKeyboard()
+    };
+
+    UrlFetchApp.fetch(
+        "https://api.telegram.org/bot" + TOKEN + "/sendMessage", {
+            method: "post",
+            contentType: "application/json",
+            payload: JSON.stringify(payload),
+            muteHttpExceptions: true
+        }
+    );
+}
+
+function answerCallback(id) {
+    UrlFetchApp.fetch(
+        "https://api.telegram.org/bot" + TOKEN + "/answerCallbackQuery", {
+            method: "post",
+            contentType: "application/json",
+            payload: JSON.stringify({
+                callback_query_id: id
+            })
+        }
+    );
+}
+
+function formatDate(d) {
+    return Utilities.formatDate(new Date(d), "GMT+5:30", "dd MMM yyyy");
+}
+
+function ok() {
+    return HtmlService.createHtmlOutput("OK");
+}
+
+// RUN ONLY WHEN DEPLOYMENT URL CHANGES
+function resetAndSetWebhook() {
+    const TOKEN = PropertiesService.getScriptProperties().getProperty("BOT_TOKEN");
+    const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycby55ye_dTtWJ-QILNYJIaXWv74_n7n0muh3U--sBl7yowMlp1FzESOokWqeHI75U5_R/exec";
+    const base = "https://api.telegram.org/bot" + TOKEN;
+
+    UrlFetchApp.fetch(base + "/deleteWebhook", {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify({
+            drop_pending_updates: true
+        })
+    });
+
+    Utilities.sleep(3000);
+
+    UrlFetchApp.fetch(base + "/setWebhook", {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify({
+            url: WEBHOOK_URL
+        })
+    });
+}
