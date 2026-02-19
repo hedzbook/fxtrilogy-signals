@@ -63,7 +63,7 @@ export default function AccessOverlay({
             </div>
 
             <a
-              href="https://t.me/yourbot"
+              href="https://t.me/fxhedzbot"
               className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-sm rounded-md"
             >
               Upgrade Subscription
