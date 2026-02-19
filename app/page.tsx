@@ -147,19 +147,11 @@ export default function Page() {
     )
   }
 
-  if (session && subActive === null) {
-    return (
-      <main className="h-screen bg-black flex items-center justify-center text-neutral-500">
-        Verifying subscription...
-      </main>
-    )
-  }
-
   return (
     <div className="relative">
 
       <main
-        className={`h-[100dvh] bg-black text-white flex flex-col transition-all duration-300 ${!isAuthorized ? "blur-sm pointer-events-none select-none" : ""
+        className={`h-[100dvh] bg-black text-white flex flex-col transition-all duration-300 ${!isAuthorized ? "blur-[2px] opacity-80 pointer-events-none select-none" : ""
           }`}
         style={{ fontSize: "clamp(10px, 0.9vw, 16px)" }}
       >
@@ -310,42 +302,54 @@ export default function Page() {
 
       </main>
 
-      {!isAuthorized && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-md z-50">
-          <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-xl text-center space-y-4 max-w-sm">
+{!isAuthorized && (
+  <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-50">
+    <div className="bg-neutral-900/70 backdrop-blur-xl border border-neutral-700 shadow-2xl p-8 rounded-xl text-center space-y-4 max-w-sm">
 
-            <div className="text-xl font-bold">
-              FXHEDZ LIVE
-            </div>
+      <div className="text-[10px] text-neutral-600 uppercase tracking-widest">
+        LIVE ENGINE RUNNING
+      </div>
 
-{!session ? (
-  <>
-    <div className="text-neutral-400 text-sm">
-      Login to access institutional signal intelligence.
-    </div>
-    <AuthButton />
-  </>
-) : subActive === false ? (
-  <>
-    <div className="text-neutral-400 text-sm">
-      Your subscription has expired.
-    </div>
-    <a
-      href="https://t.me/yourbot"
-      className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-sm rounded-md"
-    >
-      Renew Subscription
-    </a>
-  </>
-) : null}
+      <div className="text-xl font-bold">
+        FXHEDZ LIVE
+      </div>
 
-            <div className="text-xs text-neutral-500">
-              9 Instruments · Live Orders · Full History
-            </div>
-
+      {!session && (
+        <>
+          <div className="text-neutral-400 text-sm">
+            Login to access institutional signal intelligence.
           </div>
+          <AuthButton />
+        </>
+      )}
+
+      {session && subActive === null && (
+        <div className="text-neutral-400 text-sm">
+          Verifying access...
         </div>
       )}
+
+      {session && subActive === false && (
+        <>
+          <div className="text-neutral-400 text-sm">
+            Subscription expired.
+          </div>
+          <a
+            href="https://t.me/yourbot"
+            className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-sm rounded-md"
+          >
+            Renew Subscription
+          </a>
+        </>
+      )}
+
+      <div className="text-xs text-neutral-500">
+        9 Instruments · Live Orders · Full History
+      </div>
+
+    </div>
+  </div>
+)}
 
     </div>
   )
