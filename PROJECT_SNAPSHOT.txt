@@ -42,10 +42,10 @@ FULL SOURCE CODE
 // app\api\auth\[...nextauth]\route.ts
 // --------------------------------------------------
 
-import NextAuth from "next-auth"
+import NextAuth, { type NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -57,7 +57,6 @@ const handler = NextAuth({
 
   callbacks: {
     async signIn({ user }) {
-
       try {
         if (user?.email) {
           await fetch(process.env.GAS_AUTH_URL!, {
@@ -75,7 +74,9 @@ const handler = NextAuth({
       return true
     }
   }
-})
+}
+
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
 
@@ -84,96 +85,66 @@ export { handler as GET, handler as POST }
 // app\api\signals\route.ts
 // --------------------------------------------------
 
-import { NextRequest } from "next/server"
-
-export const runtime = "edge"
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "../auth/[...nextauth]/route"
 
 const GAS_URL =
   "https://script.google.com/macros/s/AKfycby55ye_dTtWJ-QILNYJIaXWv74_n7n0muh3U--sBl7yowMlp1FzESOokWqeHI75U5_R/exec?key=HEDZ2026"
 
 export async function GET(req: NextRequest) {
 
-  const pair = req.nextUrl.searchParams.get("pair")
-  const stream = req.nextUrl.searchParams.get("stream")
+  // =====================================
+  // ðŸ” AUTH CHECK
+  // =====================================
+  const session = await getServerSession(authOptions)
 
-  // =========================================
-  // NORMAL JSON MODE (unchanged behavior)
-  // =========================================
-  if (!stream) {
-
-    try {
-
-      const url = pair
-        ? `${GAS_URL}&pair=${pair}`
-        : GAS_URL
-
-      const res = await fetch(url, { cache: "no-store" })
-      const json = await res.json()
-
-      return Response.json(json)
-
-    } catch {
-
-      return Response.json(
-        { error: "Signal fetch failed" },
-        { status: 500 }
-      )
-    }
+  if (!session?.user?.email) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    )
   }
 
-  // ========================================
-  // STREAM MODE (NEW)
-  // =========================================
-  const encoder = new TextEncoder()
+  // =====================================
+  // ðŸ” SUBSCRIPTION CHECK
+  // =====================================
+  const subRes = await fetch(
+    `${process.env.GAS_AUTH_URL}?email=${session.user.email}`
+  )
 
-  const readable = new ReadableStream({
+  const subData = await subRes.json()
 
-    async start(controller) {
+  if (!subData?.active) {
+    return NextResponse.json(
+      { error: "Subscription required" },
+      { status: 403 }
+    )
+  }
 
-      let last = ""
+  // =====================================
+  // NORMAL SIGNAL FLOW
+  // =====================================
+  const pair = req.nextUrl.searchParams.get("pair")
 
-      async function push() {
+  try {
 
-        try {
+    const url = pair
+      ? `${GAS_URL}&pair=${pair}`
+      : GAS_URL
 
-          const url = pair
-            ? `${GAS_URL}&pair=${pair}`
-            : GAS_URL
+    const res = await fetch(url, { cache: "no-store" })
+    const json = await res.json()
 
-          const res = await fetch(url, { cache: "no-store" })
-          const json = await res.json()
+    return NextResponse.json(json)
 
-          const payload = JSON.stringify(json)
+  } catch {
 
-          if (payload !== last) {
-
-            controller.enqueue(
-              encoder.encode(`data: ${payload}\n\n`)
-            )
-
-            last = payload
-          }
-
-        } catch (e) {
-          console.log("stream error", e)
-        }
-      }
-
-      await push()
-
-      const interval = setInterval(push, 2500)
-
-      return () => clearInterval(interval)
-    }
-  })
-
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive"
-    }
-  })
+    return NextResponse.json(
+      { error: "Signal fetch failed" },
+      { status: 500 }
+    )
+  }
 }
 
 
