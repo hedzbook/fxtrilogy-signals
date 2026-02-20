@@ -127,10 +127,17 @@ export default function Page() {
 
 useEffect(() => {
 
-  if (subActive !== true) {
-    setSignals(generateDummySignals())
-    return
-  }
+// If not logged in → show dummy
+if (!session) {
+  setSignals(generateDummySignals())
+  return
+}
+
+// If logged in but not active → no real signals
+if (subActive !== true) {
+  setSignals(generateDummySignals())
+  return
+}
     if (!fingerprint) return
 
     async function loadSignals() {
@@ -155,50 +162,52 @@ useEffect(() => {
 
   }, [subActive, fingerprint])
 
-  // =============================
-  // CHECK SUBSCRIPTION STATUS
-  // =============================
-  useEffect(() => {
+// =============================
+// CHECK SUBSCRIPTION STATUS
+// =============================
+useEffect(() => {
 
-    if (!fingerprint) return
+  if (!fingerprint || !session) {
+    setSubActive(null)
+    return
+  }
 
-    async function init() {
+  async function init() {
 
-      let id = localStorage.getItem("fxhedz_device_id")
+    let id = localStorage.getItem("fxhedz_device_id")
 
-      if (!id) {
-        if (typeof crypto !== "undefined" && crypto.randomUUID) {
-          id = crypto.randomUUID()
-        } else {
-          id = Date.now().toString() + Math.random().toString(36).substring(2)
-        }
-
-        localStorage.setItem("fxhedz_device_id", id)
+    if (!id) {
+      if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        id = crypto.randomUUID()
+      } else {
+        id = Date.now().toString() + Math.random().toString(36).substring(2)
       }
 
-      // Write cookie FIRST
-document.cookie = `fx_device=${id}; path=/; max-age=31536000; SameSite=Lax`
-document.cookie = `fx_fp=${fingerprint}; path=/; max-age=31536000; SameSite=Lax`
-
-      // 🔥 Critical: small wait to guarantee cookie persistence
-      await new Promise(resolve => setTimeout(resolve, 60))
-
-      try {
-        const res = await fetch(
-          `/api/subscription?fingerprint=${encodeURIComponent(fingerprint)}`,
-          { cache: "no-store" }
-        )
-
-        const data = await res.json()
-        setSubActive(data.active)
-setAccessMeta(data)
-      } catch {
-        setSubActive(false)
-      }
+      localStorage.setItem("fxhedz_device_id", id)
     }
 
-    init()
-  }, [fingerprint])
+    document.cookie = `fx_device=${id}; path=/; max-age=31536000; SameSite=Lax`
+    document.cookie = `fx_fp=${fingerprint}; path=/; max-age=31536000; SameSite=Lax`
+
+    await new Promise(resolve => setTimeout(resolve, 60))
+
+    try {
+      const res = await fetch(
+        `/api/subscription?fingerprint=${encodeURIComponent(fingerprint)}`,
+        { cache: "no-store" }
+      )
+
+      const data = await res.json()
+      setSubActive(data.active)
+      setAccessMeta(data)
+    } catch {
+      setSubActive(false)
+    }
+  }
+
+  init()
+
+}, [fingerprint, session])
 
   useEffect(() => {
     const timer = setTimeout(() => {
