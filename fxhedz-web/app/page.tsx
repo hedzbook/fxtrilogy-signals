@@ -160,7 +160,7 @@ if (subActive !== true) {
     const interval = setInterval(loadSignals, 2500)
     return () => clearInterval(interval)
 
-  }, [subActive, fingerprint])
+  }, [subActive, fingerprint, session])
 
 // =============================
 // CHECK SUBSCRIPTION STATUS
@@ -274,7 +274,7 @@ useEffect(() => {
     <div className="relative">
 
       <main
-        className={`h-[100dvh] bg-black text-white flex flex-col ${subActive !== true ? "pointer-events-none" : ""
+        className={`h-[100dvh] bg-black text-white flex flex-col ${session && subActive === false ? "pointer-events-none" : ""
           }`}
         style={{ fontSize: "clamp(10px, 0.9vw, 16px)" }}
       >
