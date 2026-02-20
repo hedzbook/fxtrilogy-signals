@@ -734,34 +734,38 @@ export default function AccessOverlay({
   // =============================
   // 3ï¸âƒ£ DEVICE BLOCKED
   // =============================
-  if (blocked) {
-    return (
-      <OverlayContainer>
-        <div className="space-y-4 text-center max-w-sm">
+if (blocked) {
+  return (
+    <OverlayContainer>
+      <div className="space-y-4 text-center max-w-sm">
 
-          <div className="text-[10px] uppercase tracking-widest text-neutral-500">
-            FXHEDZ LIVE ENGINE
-          </div>
-
-          <div className="text-xl font-semibold">
-            Device Not Authorized
-          </div>
-
-          <div className="text-neutral-400 text-sm">
-            This device has already consumed a trial or is not permitted.
-          </div>
-
-          <a
-            href="https://t.me/fxhedzbot"
-            className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-sm rounded-md"
-          >
-            Contact Support
-          </a>
-
+        <div className="text-[10px] uppercase tracking-widest text-neutral-500">
+          FXHEDZ LIVE ENGINE
         </div>
-      </OverlayContainer>
-    )
-  }
+
+        <div className="text-xl font-semibold">
+          Device Not Authorized
+        </div>
+
+        <div className="text-neutral-400 text-sm">
+          This device has already consumed a trial or is not permitted.
+        </div>
+
+        <a
+          href="https://t.me/fxhedzbot"
+          className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-sm rounded-md"
+        >
+          Contact Support
+        </a>
+
+        <div className="pt-4">
+          <AuthButton />
+        </div>
+
+      </div>
+    </OverlayContainer>
+  )
+}
 
   // =============================
   // 4ï¸âƒ£ TRIAL EXPIRED (NOT LOGGED IN)
@@ -827,6 +831,9 @@ export default function AccessOverlay({
           >
             Upgrade Subscription
           </a>
+          <div className="pt-4">
+  <AuthButton />
+</div>
 
         </div>
       </OverlayContainer>

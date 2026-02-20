@@ -56,9 +56,9 @@ const accessRes = await fetch(
 
   try {
 
-    const url = pair
-      ? `${GAS_BASE}?secret=${process.env.GAS_SECRET}&pair=${pair}`
-      : `${GAS_BASE}?secret=${process.env.GAS_SECRET}`
+const url = pair
+  ? `${GAS_BASE}?secret=${process.env.GAS_SECRET}&pair=${pair}&device_id=${deviceId}&fingerprint=${encodeURIComponent(fingerprint)}`
+  : `${GAS_BASE}?secret=${process.env.GAS_SECRET}&device_id=${deviceId}&fingerprint=${encodeURIComponent(fingerprint)}`
 
     const res = await fetch(url, { cache: "no-store" })
     const json = await res.json()
