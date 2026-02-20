@@ -104,26 +104,48 @@ export default function Page() {
   const [accessMeta, setAccessMeta] = useState<any>(null)
 
   useEffect(() => {
+  console.log("SESSION:", session)
+  console.log("FINGERPRINT:", fingerprint)
+  console.log("SUBACTIVE:", subActive)
+}, [session, fingerprint, subActive])
 
-    async function generateFingerprint() {
+useEffect(() => {
+
+  async function generateFingerprint() {
+
+    try {
 
       const raw = [
         navigator.userAgent,
         screen.width,
         screen.height,
         Intl.DateTimeFormat().resolvedOptions().timeZone,
-        navigator.hardwareConcurrency,
-        navigator.platform,
         navigator.language
       ].join("|")
 
-      const hash = await sha256(raw)
+      let hash = ""
+
+      if (window.crypto?.subtle) {
+        const encoder = new TextEncoder()
+        const data = encoder.encode(raw)
+        const buffer = await window.crypto.subtle.digest("SHA-256", data)
+        hash = Array.from(new Uint8Array(buffer))
+          .map(b => b.toString(16).padStart(2, "0"))
+          .join("")
+      } else {
+        hash = btoa(raw).slice(0, 64)
+      }
+
       setFingerprint(hash)
+
+    } catch {
+      setFingerprint("fallback_" + Date.now())
     }
+  }
 
-    generateFingerprint()
+  generateFingerprint()
 
-  }, [])
+}, [])
 
 useEffect(() => {
 
@@ -167,8 +189,14 @@ if (subActive !== true) {
 // =============================
 useEffect(() => {
 
-  if (!fingerprint || !session) {
-    setSubActive(null)
+  // NOT logged in → no verification
+  if (!session) {
+    setSubActive(false)
+    return
+  }
+
+  // Wait until fingerprint exists
+  if (!fingerprint) {
     return
   }
 
@@ -177,19 +205,12 @@ useEffect(() => {
     let id = localStorage.getItem("fxhedz_device_id")
 
     if (!id) {
-      if (typeof crypto !== "undefined" && crypto.randomUUID) {
-        id = crypto.randomUUID()
-      } else {
-        id = Date.now().toString() + Math.random().toString(36).substring(2)
-      }
-
+      id = crypto.randomUUID()
       localStorage.setItem("fxhedz_device_id", id)
     }
 
-    document.cookie = `fx_device=${id}; path=/; max-age=31536000; SameSite=Lax`
-    document.cookie = `fx_fp=${fingerprint}; path=/; max-age=31536000; SameSite=Lax`
-
-    await new Promise(resolve => setTimeout(resolve, 60))
+    document.cookie = `fx_device=${id}; path=/; max-age=31536000`
+    document.cookie = `fx_fp=${fingerprint}; path=/; max-age=31536000`
 
     try {
       const res = await fetch(
@@ -198,8 +219,11 @@ useEffect(() => {
       )
 
       const data = await res.json()
-      setSubActive(data.active)
+
+      // 🔥 CRITICAL LINE
+      setSubActive(Boolean(data?.active))
       setAccessMeta(data)
+
     } catch {
       setSubActive(false)
     }
