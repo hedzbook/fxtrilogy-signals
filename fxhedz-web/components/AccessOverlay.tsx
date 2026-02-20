@@ -18,92 +18,70 @@ export default function AccessOverlay({
   blocked
 }: Props) {
 
-  // =============================
   // 1️⃣ LOADING
-  // =============================
   if (active === null) {
     return (
       <OverlayContainer>
-        <div className="text-neutral-400 text-sm">
-          Verifying access...
-        </div>
+        <Panel>
+          <p className="text-sm md:text-base text-neutral-500">
+            Verifying access...
+          </p>
+        </Panel>
       </OverlayContainer>
     )
   }
 
-  // =============================
   // 2️⃣ ACCESS GRANTED
-  // =============================
-  if (active === true) {
-    return null
+  if (active === true) return null
+
+  // 3️⃣ DEVICE BLOCKED
+  if (blocked) {
+    return (
+      <OverlayContainer>
+        <Panel>
+
+          <Header />
+          <Title>Device Not Authorized</Title>
+
+          <Description>
+            This device has already consumed a trial or is not permitted.
+          </Description>
+
+          <a
+            href="https://t.me/fxhedzbot"
+            className="institution-btn-secondary"
+          >
+            Contact Support
+          </a>
+
+          <AuthButton />
+
+        </Panel>
+      </OverlayContainer>
+    )
   }
 
-  // =============================
-  // 3️⃣ DEVICE BLOCKED
-  // =============================
-if (blocked) {
-  return (
-    <OverlayContainer>
-      <div className="space-y-4 text-center max-w-sm">
+  // 4️⃣ LOGIN REQUIRED
+  if (!sessionExists) {
+    return (
+      <OverlayContainer>
+        <Panel>
 
-        <div className="text-[10px] uppercase tracking-widest text-neutral-500">
-          FXHEDZ LIVE ENGINE
-        </div>
+          <Header />
+          <Title>Login Required</Title>
 
-        <div className="text-xl font-semibold">
-          Device Not Authorized
-        </div>
+          <Description>
+            Sign in with Google to unlock 14-day free trial.
+          </Description>
 
-        <div className="text-neutral-400 text-sm">
-          This device has already consumed a trial or is not permitted.
-        </div>
-
-        <a
-          href="https://t.me/fxhedzbot"
-          className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-sm rounded-md"
-        >
-          Contact Support
-        </a>
-
-        <div className="pt-4">
           <AuthButton />
-        </div>
 
-      </div>
-    </OverlayContainer>
-  )
-}
+        </Panel>
+      </OverlayContainer>
+    )
+  }
 
-  // =============================
-  // 4️⃣ TRIAL EXPIRED (NOT LOGGED IN)
-  // =============================
-if (!sessionExists) {
-  return (
-    <OverlayContainer>
-      <div className="space-y-4 text-center max-w-sm">
-
-        <div className="text-[10px] uppercase tracking-widest text-neutral-500">
-          FXHEDZ LIVE ENGINE
-        </div>
-
-        <div className="text-xl font-semibold">
-          Login Required
-        </div>
-
-        <div className="text-neutral-400 text-sm">
-          Sign in with Google to unlock live signals.
-        </div>
-
-        <AuthButton />
-
-      </div>
-    </OverlayContainer>
-  )
-}
-
-  // =============================
-  // 5️⃣ FREE EXPIRED (LOGGED IN)
-  // =============================
+  // 5️⃣ FREE EXPIRED
   if (sessionExists && status === "free") {
 
     const formattedExpiry = expiry
@@ -112,45 +90,39 @@ if (!sessionExists) {
 
     return (
       <OverlayContainer>
-        <div className="space-y-4 text-center max-w-sm">
+        <Panel>
 
-          <div className="text-[10px] uppercase tracking-widest text-neutral-500">
-            FXHEDZ LIVE ENGINE
-          </div>
+          <Header />
+          <Title>Free Access Ended</Title>
 
-          <div className="text-xl font-semibold">
-            Free Access Ended
-          </div>
-
-          <div className="text-neutral-400 text-sm">
+          <Description>
             {formattedExpiry
               ? `Your free access expired on ${formattedExpiry}.`
               : "Your free access has expired."}
-          </div>
+          </Description>
 
           <a
             href="https://t.me/fxhedzbot"
-            className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-sm rounded-md"
+            className="institution-btn-primary"
           >
             Upgrade Subscription
           </a>
-          <div className="pt-4">
-  <AuthButton />
-</div>
 
-        </div>
+          <AuthButton />
+
+        </Panel>
       </OverlayContainer>
     )
   }
 
-  // =============================
-  // 6️⃣ FALLBACK (SAFETY NET)
-  // =============================
+  // 6️⃣ FALLBACK
   return (
     <OverlayContainer>
-      <div className="text-neutral-400 text-sm">
-        Access restricted.
-      </div>
+      <Panel>
+        <p className="text-sm md:text-base text-neutral-500">
+          Access restricted.
+        </p>
+      </Panel>
     </OverlayContainer>
   )
 }
@@ -159,10 +131,69 @@ if (!sessionExists) {
 
 function OverlayContainer({ children }: any) {
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-neutral-900/95 border border-neutral-800 shadow-2xl p-8 rounded-xl">
-        {children}
-      </div>
+    <div className="
+      absolute inset-0 z-50
+      flex items-center justify-center
+      pointer-events-auto
+    ">
+      {children}
     </div>
+  )
+}
+
+function Panel({ children }: any) {
+  return (
+    <div className="
+      w-[90%] max-w-[520px]
+      bg-neutral-900
+      border border-neutral-800
+      rounded-xl
+      shadow-xl
+      px-8 md:px-12
+      py-8 md:py-10
+      space-y-6
+      text-center
+    ">
+      {children}
+    </div>
+  )
+}
+
+function Header() {
+  return (
+    <div className="
+      text-[10px] md:text-xs
+      uppercase
+      tracking-[0.3em]
+      text-neutral-500
+      font-medium
+    ">
+      FXHEDZ LIVE ENGINE
+    </div>
+  )
+}
+
+function Title({ children }: any) {
+  return (
+    <h2 className="
+      text-lg md:text-2xl lg:text-3xl
+      font-semibold
+      tracking-tight
+      text-white
+    ">
+      {children}
+    </h2>
+  )
+}
+
+function Description({ children }: any) {
+  return (
+    <p className="
+      text-xs md:text-sm lg:text-base
+      text-neutral-400
+      leading-relaxed
+    ">
+      {children}
+    </p>
   )
 }
