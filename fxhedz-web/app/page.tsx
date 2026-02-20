@@ -52,6 +52,17 @@ export default function Page() {
   const [accessMeta, setAccessMeta] = useState<any>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const hamburgerRef = useRef<HTMLButtonElement | null>(null)
+  const daysLeft = useMemo(() => {
+  if (!accessMeta?.expiry) return null
+
+  const now = new Date()
+  const expiry = new Date(accessMeta.expiry)
+
+  const diff = expiry.getTime() - now.getTime()
+  const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
+
+  return days > 0 ? days : 0
+}, [accessMeta])
 
   useEffect(() => {
 
@@ -416,10 +427,10 @@ export default function Page() {
             height: "clamp(26px,3vh,40px)"
           }}
         >
-          {menuOpen && (
-            <div
-              ref={menuRef}
-              className="
+{menuOpen && (
+  <div
+    ref={menuRef}
+    className="
       absolute
       bottom-[clamp(26px,3vh,40px)]
       left-0
@@ -429,11 +440,37 @@ export default function Page() {
       p-4
       z-50
       shadow-lg
+      space-y-4
     "
-            >
-              <AuthButton />
-            </div>
-          )}
+  >
+
+    {/* SUBSCRIPTION STATUS */}
+    {session && (
+      <div className="text-[11px] text-neutral-400 space-y-1">
+        <div className="flex justify-between">
+          <span>Status</span>
+          <span className={subActive ? "text-green-400" : "text-red-400"}>
+            {subActive ? "ACTIVE" : "INACTIVE"}
+          </span>
+        </div>
+
+        {daysLeft !== null && (
+          <div className="flex justify-between">
+            <span>Days Left</span>
+            <span className={daysLeft > 3 ? "text-sky-400" : "text-orange-400"}>
+              {daysLeft}
+            </span>
+          </div>
+        )}
+      </div>
+    )}
+
+    <div className="border-t border-neutral-800 pt-3">
+      <AuthButton />
+    </div>
+
+  </div>
+)}
 
           {/* BOTTOM LEFT BUTTON (HAMBURGER HERE) */}
           <button

@@ -1824,130 +1824,157 @@ function InlineTradeStrip({ signal, direction }: any) {
 
   if (!sl || !tp) return null
 
+  const isHedged = direction === "HEDGED"
+
   let pricePercent = 50
 
-  if (direction === "BUY") {
-    const leftRange = Math.abs(entry - sl)
-    const rightRange = Math.abs(tp - entry)
+  if (!isHedged) {
+    if (direction === "BUY") {
+      const leftRange = Math.abs(entry - sl)
+      const rightRange = Math.abs(tp - entry)
 
-    if (price < entry && leftRange > 0)
-      pricePercent = 50 - ((entry - price) / leftRange) * 50
+      if (price < entry && leftRange > 0)
+        pricePercent = 50 - ((entry - price) / leftRange) * 50
 
-    if (price > entry && rightRange > 0)
-      pricePercent = 50 + ((price - entry) / rightRange) * 50
+      if (price > entry && rightRange > 0)
+        pricePercent = 50 + ((price - entry) / rightRange) * 50
+    }
+
+    if (direction === "SELL") {
+      const leftRange = Math.abs(tp - entry)
+      const rightRange = Math.abs(entry - sl)
+
+      if (price > entry && rightRange > 0)
+        pricePercent = 50 - ((price - entry) / rightRange) * 50
+
+      if (price < entry && leftRange > 0)
+        pricePercent = 50 + ((entry - price) / leftRange) * 50
+    }
+
+    pricePercent = Math.max(0.9, Math.min(99.2, pricePercent))
   }
-
-  if (direction === "SELL") {
-    const leftRange = Math.abs(tp - entry)
-    const rightRange = Math.abs(entry - sl)
-
-    if (price > entry && rightRange > 0)
-      pricePercent = 50 - ((price - entry) / rightRange) * 50
-
-    if (price < entry && leftRange > 0)
-      pricePercent = 50 + ((entry - price) / leftRange) * 50
-  }
-
-  pricePercent = Math.max(0.9, Math.min(99.2, pricePercent))
 
   const isTPside =
     direction === "BUY"
       ? price >= entry
-      : price <= entry
+      : direction === "SELL"
+        ? price <= entry
+        : false
 
   return (
     <div className="flex flex-col w-full gap-[clamp(1px,0.5vw,6px)]">
 
-      {/* BAR */}
       <div className="relative w-full h-[clamp(2px,0.35vw,6px)]">
 
         <div className="absolute inset-0 bg-neutral-800 rounded-full" />
 
-        {/* left half */}
-        <div className="absolute left-0 h-[clamp(2px,0.35vw,6px)] w-1/2 bg-red-500/70" />
+        {/* LEFT HALF */}
+        <div
+          className={`absolute left-0 h-full w-1/2 ${
+            isHedged
+              ? "bg-sky-500/70"
+              : "bg-red-500/70"
+          }`}
+        />
 
-        {/* right half */}
-        <div className="absolute right-0 h-[clamp(2px,0.35vw,6px)] w-1/2 bg-green-500/70" />
+        {/* RIGHT HALF */}
+        <div
+          className={`absolute right-0 h-full w-1/2 ${
+            isHedged
+              ? "bg-sky-500/70"
+              : "bg-green-500/70"
+          }`}
+        />
 
-        {/* SL dot */}
+        {/* SL DOT */}
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full border border-neutral-500 bg-black" />
 
-{/* ENTRY dot */}
-<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full bg-neutral-400" />
+        {/* ENTRY DOT */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full bg-neutral-400" />
 
-        {/* TP dot */}
+        {/* TP DOT */}
         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full border border-neutral-500 bg-black" />
 
-{/* LIVE DOT */}
-<div
-  className="absolute top-1/2"
-  style={{
-    left: `${pricePercent}%`,
-    transform: "translate(-50%, -50%)",
-    transition: "left 300ms ease"
-  }}
->
+        {/* LIVE DOT */}
+        <div
+          className="absolute top-1/2"
+          style={{
+            left: `${pricePercent}%`,
+            transform: "translate(-50%, -50%)",
+            transition: "left 300ms ease"
+          }}
+        >
 
-  {/* OUTER PULSE RING â€” MODERATE */}
-  <div
-    className={`
-      absolute
-      w-[clamp(12px,1.8vw,36px)]
-      h-[clamp(12px,1.8vw,36px)]
-      -translate-x-1/2
-      -translate-y-1/2
-      left-1/2
-      top-1/2
-      rounded-full
-      ${isTPside ? "bg-green-400/35" : "bg-red-400/35"}
-      animate-ping
-    `}
-    style={{
-      animationDuration: "0.85s"
-    }}
-  />
+          {/* OUTER PULSE */}
+          <div
+            className={`
+              absolute
+              w-[clamp(12px,1.8vw,36px)]
+              h-[clamp(12px,1.8vw,36px)]
+              -translate-x-1/2
+              -translate-y-1/2
+              left-1/2
+              top-1/2
+              rounded-full
+              ${isHedged
+                ? "bg-sky-400/35"
+                : isTPside
+                  ? "bg-green-400/35"
+                  : "bg-red-400/35"
+              }
+              animate-ping
+            `}
+            style={{ animationDuration: "0.85s" }}
+          />
 
-  {/* STATIC SOFT HALO */}
-  <div
-    className={`
-      absolute
-      w-[clamp(9px,1.4vw,28px)]
-      h-[clamp(9px,1.4vw,28px)]
-      -translate-x-1/2
-      -translate-y-1/2
-      left-1/2
-      top-1/2
-      rounded-full
-      blur-lg
-      ${isTPside ? "bg-green-500/45" : "bg-red-500/45"}
-    `}
-  />
+          {/* HALO */}
+          <div
+            className={`
+              absolute
+              w-[clamp(9px,1.4vw,28px)]
+              h-[clamp(9px,1.4vw,28px)]
+              -translate-x-1/2
+              -translate-y-1/2
+              left-1/2
+              top-1/2
+              rounded-full
+              blur-lg
+              ${isHedged
+                ? "bg-sky-500/45"
+                : isTPside
+                  ? "bg-green-500/45"
+                  : "bg-red-500/45"
+              }
+            `}
+          />
 
-  {/* CORE DOT â€” EXACT SIZE YOU WANT */}
-  <div
-    className={`
-      relative
-      w-[clamp(6px,1.3vw,28px)]
-      h-[clamp(6px,1.3vw,28px)]
-      rounded-full
-      ${isTPside ? "bg-green-400" : "bg-red-400"}
-    `}
-  />
-
-</div>
-
+          {/* CORE DOT */}
+          <div
+            className={`
+              relative
+              w-[clamp(6px,1.3vw,28px)]
+              h-[clamp(6px,1.3vw,28px)]
+              rounded-full
+              ${isHedged
+                ? "bg-sky-400"
+                : isTPside
+                  ? "bg-green-400"
+                  : "bg-red-400"
+              }
+            `}
+          />
+        </div>
       </div>
 
-      {/* PRICE ROW */}
       <div className="flex justify-between text-[clamp(8px,2.4vw,16px)] text-neutral-400">
         <span>{sl}</span>
         <span>{entry}</span>
         <span>{tp}</span>
       </div>
-
     </div>
   )
 }
+
 /* ======================================================
    TRADE BAR (MID / MAX MODE)
 ====================================================== */
