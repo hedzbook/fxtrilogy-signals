@@ -45,7 +45,7 @@ export default function PairDetail({
                 />
 <GlobalLightChart
     mountId={`chart_mount_${pair}`}
-    signal={signal}
+    signal={isGuest ? data : signal}
     disableOverlays={isGuest}
 />
             </div>

@@ -25,6 +25,7 @@ components\VerticalSymbolButton.tsx
 eslint.config.mjs
 GAS.txt
 lib\device.ts
+lib\dummyDetail.ts
 lib\dummySignals.ts
 MT5.txt
 next.config.ts
@@ -117,18 +118,18 @@ export { handler as GET, handler as POST }
 // app\api\public-preview\route.ts
 // --------------------------------------------------
 
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
 const GAS_BASE =
   "https://script.google.com/macros/s/AKfycby55ye_dTtWJ-QILNYJIaXWv74_n7n0muh3U--sBl7yowMlp1FzESOokWqeHI75U5_R/exec"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const pair = req.nextUrl.searchParams.get("pair") || "XAUUSD"
+
     const res = await fetch(
-      `${GAS_BASE}?secret=${process.env.GAS_SECRET}&pair=XAUUSD`,
-      {
-        next: { revalidate: 10 }
-      }
+      `${GAS_BASE}?secret=${process.env.GAS_SECRET}&pair=${pair}`,
+      { next: { revalidate: 10 } }
     )
 
     const json = await res.json()
@@ -377,6 +378,7 @@ import AccessOverlay from "@/components/AccessOverlay"
 import { generateDummySignals } from "@/lib/dummySignals"
 import { ensureDeviceIdentity } from "@/lib/device"
 import { signOut } from "next-auth/react"
+import { generateDummyDetail } from "@/lib/dummyDetail"
 
 const pairs: any = {}
 
@@ -408,6 +410,19 @@ export default function Page() {
   const { data: session, status } = useSession()
   const [fingerprint, setFingerprint] = useState<string>("")
   const [accessMeta, setAccessMeta] = useState<any>(null)
+  async function loadPreview(pair: string) {
+  try {
+    const res = await fetch(`/api/public-preview?pair=${pair}`)
+    const json = await res.json()
+
+    setPairData((prev: any) => ({
+      ...prev,
+      [pair]: json
+    }))
+  } catch (e) {
+    console.error("Preview load failed", e)
+  }
+}
   const menuRef = useRef<HTMLDivElement | null>(null)
   const hamburgerRef = useRef<HTMLButtonElement | null>(null)
   const daysLeft = useMemo(() => {
@@ -626,9 +641,16 @@ export default function Page() {
     return () => clearTimeout(timer)
   }, [signals])
 
-  useEffect(() => {
+useEffect(() => {
 
-    if (!openPair || subActive !== true) return
+  if (!openPair) return
+
+  const isGuest = !session || subActive !== true
+
+  if (isGuest) {
+    loadPreview(openPair)
+    return
+  }
     if (!fingerprint) return
 
     const pairKey = openPair
@@ -675,6 +697,19 @@ export default function Page() {
       return { pair, signal, orders: extra?.orders || [] }
     })
   }, [uiSignals, pairData])
+
+  const isGuest = !session || subActive !== true
+
+let detailData: any = undefined
+
+if (openPair) {
+  detailData = isGuest
+    ? {
+        ...generateDummyDetail(openPair),
+        orders: uiSignals?.[openPair]?.orders || []
+      }
+    : pairData?.[openPair]
+}
 
   return (
     <div className="relative">
@@ -756,12 +791,13 @@ export default function Page() {
               </div>
 
               {/* RIGHT DETAIL */}
-              <PairDetail
-                pair={openPair}
-                data={pairData?.[openPair]}
-                signal={uiSignals?.[openPair]}
-                onClose={() => setOpenPair(null)}
-              />
+<PairDetail
+  pair={openPair}
+  data={detailData}
+  signal={uiSignals?.[openPair]}
+  onClose={() => setOpenPair(null)}
+  isGuest={isGuest}
+/>
 
             </div>
 
@@ -1417,10 +1453,12 @@ import {
 
 export default function GlobalLightChart({
     mountId,
-    signal
+    signal,
+    disableOverlays
 }: {
     mountId?: string
     signal?: any
+    disableOverlays?: boolean
 }) {
 
     const chartRef = useRef<any>(null)
@@ -1528,6 +1566,8 @@ const chart = createChart(container, {
     // OVERLAY ENGINE
     // ==========================================
     useEffect(() => {
+
+    if (disableOverlays) return
 
         const candleSeries = candleSeriesRef.current
         if (!candleSeries || !signal) return
@@ -2298,13 +2338,15 @@ type Props = {
     signal: any
     data: any
     onClose: () => void
+    isGuest?: boolean
 }
 
 export default function PairDetail({
     pair,
     signal,
     data,
-    onClose
+    onClose,
+    isGuest = false
 }: Props) {
 
     const [tab, setTab] = useState<"market" | "news" | "history" | "performance">("market")
@@ -2331,10 +2373,11 @@ export default function PairDetail({
                     id={`chart_mount_${pair}`}
                     className="w-full h-full"
                 />
-                <GlobalLightChart
-                    mountId={`chart_mount_${pair}`}
-                    signal={signal}
-                />
+<GlobalLightChart
+    mountId={`chart_mount_${pair}`}
+    signal={signal}
+    disableOverlays={isGuest}
+/>
             </div>
 
             {/* TABS (FIXED) */}
@@ -2644,6 +2687,35 @@ export function ensureDeviceIdentity() {
   document.cookie = `fx_fp=${fingerprint}; path=/; max-age=31536000`
 
   return { deviceId, fingerprint }
+}
+
+
+
+// lib\dummyDetail.ts
+// --------------------------------------------------
+
+export function generateDummyDetail(pair: string) {
+
+  const history = [
+    { direction: "BUY", entry: 1.0800, exit: 1.0865, pnl: 65.00 },
+    { direction: "SELL", entry: 1.0920, exit: 1.0850, pnl: 70.00 },
+    { direction: "BUY", entry: 1.0700, exit: 1.0680, pnl: -20.00 }
+  ]
+
+  const performance = {
+    winRate: 73,
+    profitFactor: 1.82,
+    trades: 48,
+    wins: 35,
+    losses: 13,
+    pnlTotal: 1245.60
+  }
+
+  return {
+    history,
+    performance,
+    notes: "Institutional accumulation detected. Liquidity engineering active."
+  }
 }
 
 
