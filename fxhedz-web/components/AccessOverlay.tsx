@@ -69,7 +69,7 @@ export default function AccessOverlay({
         )}
 
         {/* 3️⃣ LOGIN REQUIRED */}
-        {!sessionExists && !blocked && active !== null && (
+        {(!sessionExists || active === false) && !blocked && (
           <>
             <Header />
             <Title>Institutional Sign-in</Title>
@@ -83,7 +83,7 @@ export default function AccessOverlay({
         )}
 
         {/* 4️⃣ LIVE EXPIRED */}
-        {sessionExists && status === "live" && !blocked && (
+        {sessionExists && active === false && !blocked && (
           <>
             <Header />
             <Title>Trial Concluded</Title>

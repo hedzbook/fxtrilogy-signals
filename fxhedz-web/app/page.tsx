@@ -10,7 +10,6 @@ import { useSession } from "next-auth/react"
 import AccessOverlay from "@/components/AccessOverlay"
 import { generateDummySignals } from "@/lib/dummySignals"
 import { ensureDeviceIdentity } from "@/lib/device"
-import { signOut } from "next-auth/react"
 
 const pairs: any = {}
 
@@ -221,10 +220,6 @@ export default function Page() {
         )
 
         const data = await res.json()
-        if (data?.blocked || data?.active === false) {
-  await signOut({ callbackUrl: "/" })
-  return
-}
 
         if (data?.blocked && data?.reason === "device_limit_exceeded") {
           setSubActive(false)
