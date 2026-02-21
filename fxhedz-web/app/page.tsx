@@ -492,20 +492,35 @@ export default function Page() {
                 </div>
 
                 {/* UPGRADE */}
-                <a
-                  href="https://t.me/fxhedzbot"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="
-          block w-full text-center
-          py-2 rounded-md
-          bg-sky-600 hover:bg-sky-500
-          text-white font-semibold
-          transition-colors
-        "
-                >
-                  LIVE+
-                </a>
+                {accessMeta?.status !== "live+" ? (
+                  <a
+                    href="https://t.me/fxhedzbot"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="
+      block w-full text-center
+      py-2 rounded-md
+      bg-sky-600 hover:bg-sky-500
+      text-white font-semibold
+      transition-colors
+    "
+                  >
+                    GO LIVE+
+                  </a>
+                ) : (
+                  <div
+                    className="
+      block w-full text-center
+      py-2 rounded-md
+      bg-emerald-600
+      text-white font-semibold
+      opacity-90
+      cursor-default
+    "
+                  >
+                    LIVE+ ACTIVE
+                  </div>
+                )}
 
                 {/* SUPPORT */}
                 <a
