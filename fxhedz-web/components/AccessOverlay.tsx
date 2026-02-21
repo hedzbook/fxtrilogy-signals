@@ -82,8 +82,8 @@ export default function AccessOverlay({
           </>
         )}
 
-        {/* 4️⃣ FREE EXPIRED */}
-        {sessionExists && status === "free" && !blocked && (
+        {/* 4️⃣ LIVE EXPIRED */}
+        {sessionExists && status === "live" && !blocked && (
           <>
             <Header />
             <Title>Trial Concluded</Title>
