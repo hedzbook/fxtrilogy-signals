@@ -201,34 +201,49 @@ export default function Page() {
       return
     }
 
-    async function init() {
+async function init() {
 
-      let id = localStorage.getItem("fxhedz_device_id")
+  let id = localStorage.getItem("fxhedz_device_id")
 
-      if (!id) {
-        id = crypto.randomUUID()
-        localStorage.setItem("fxhedz_device_id", id)
-      }
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem("fxhedz_device_id", id)
+  }
 
-      document.cookie = `fx_device=${id}; path=/; max-age=31536000`
-      document.cookie = `fx_fp=${fingerprint}; path=/; max-age=31536000`
+  document.cookie = `fx_device=${id}; path=/; max-age=31536000`
+  document.cookie = `fx_fp=${fingerprint}; path=/; max-age=31536000`
 
-      try {
-        const res = await fetch(
-          `/api/subscription?fingerprint=${encodeURIComponent(fingerprint)}`,
-          { cache: "no-store" }
-        )
+  // 🔥 PLATFORM DETECTION
+  try {
+    const tg = (window as any)?.Telegram?.WebApp
 
-        const data = await res.json()
+    if (tg?.initDataUnsafe?.user?.id) {
+      const tgUser = tg.initDataUnsafe.user
 
-        // 🔥 CRITICAL LINE
-        setSubActive(Boolean(data?.active))
-        setAccessMeta(data)
-
-      } catch {
-        setSubActive(false)
-      }
+      document.cookie = `fx_platform=telegram; path=/; max-age=31536000`
+      document.cookie = `fx_tg_id=${tgUser.id}; path=/; max-age=31536000`
+    } else {
+      document.cookie = `fx_platform=web; path=/; max-age=31536000`
     }
+  } catch {
+    document.cookie = `fx_platform=web; path=/; max-age=31536000`
+  }
+
+  try {
+    const res = await fetch(
+      `/api/subscription?fingerprint=${encodeURIComponent(fingerprint)}`,
+      { cache: "no-store" }
+    )
+
+    const data = await res.json()
+
+    setSubActive(Boolean(data?.active))
+    setAccessMeta(data)
+
+  } catch {
+    setSubActive(false)
+  }
+}
 
     init()
 
