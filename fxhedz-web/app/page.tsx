@@ -459,7 +459,7 @@ export default function Page() {
                 <div className="space-y-2 text-neutral-400">
 
                   <div className="flex justify-between">
-                    <span>Status</span>
+                    <span>Plan</span>
                     <span className={subActive ? "text-green-400 font-semibold" : "text-red-400 font-semibold"}>
                       {subActive ? "ACTIVE" : "INACTIVE"}
                     </span>
@@ -498,7 +498,7 @@ export default function Page() {
           transition-colors
         "
                 >
-                  Upgrade
+                  LIVE+
                 </a>
 
                 {/* SUPPORT */}
@@ -514,7 +514,7 @@ export default function Page() {
           transition-colors
         "
                 >
-                  Support
+                  HELP
                 </a>
 
                 {/* AUTH BUTTON */}
