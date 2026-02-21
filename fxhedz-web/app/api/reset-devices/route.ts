@@ -13,7 +13,7 @@ export async function POST() {
       )
     }
 
-    const res = await fetch(process.env.GAS_URL!, {
+    const res = await fetch(process.env.GAS_AUTH_URL!, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

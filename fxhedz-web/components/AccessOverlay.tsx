@@ -1,6 +1,6 @@
 "use client"
 
-import { signOut } from "next-auth/react" 
+import { signOut } from "next-auth/react"
 import AuthButton from "./AuthButton"
 
 type Props = {
@@ -32,42 +32,42 @@ export default function AccessOverlay({
           </div>
         )}
 
-{/* 2️⃣ DEVICE BLOCKED */}
-{blocked && (
-  <>
-    <Header />
-    <Title>Device Restricted</Title>
-    <Description>
-      Maximum allowed devices is 2.
-      You may sign out of all registered devices to continue.
-    </Description>
+        {/* 2️⃣ DEVICE BLOCKED */}
+        {blocked && (
+          <>
+            <Header />
+            <Title>Device Restricted</Title>
+            <Description>
+              Maximum allowed devices is 2.
+              You may sign out of all registered devices to continue.
+            </Description>
 
-    <div className="space-y-2 w-full">
+            <div className="space-y-2 w-full">
 
-      <button
-        onClick={async () => {
-const res = await fetch("/api/reset-devices", {
-  method: "POST"
-})
+              <button
+                onClick={async () => {
+                  const res = await fetch("/api/reset-devices", {
+                    method: "POST"
+                  })
 
-const data = await res.json()
+                  const data = await res.json()
 
-if (data?.success) {
-  window.location.reload()
-}
-        }}
-        className="w-full flex justify-center items-center py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs sm:text-sm font-bold rounded-md transition-all shadow-md active:scale-[0.98]"
-      >
-        Logout of All Devices
-      </button>
+                  if (data?.success) {
+                    await signOut({ callbackUrl: "/" })
+                  }
+                }}
+                className="w-full flex justify-center items-center py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs sm:text-sm font-bold rounded-md transition-all shadow-md active:scale-[0.98]"
+              >
+                Logout of All Devices
+              </button>
 
-      <div className="pt-4 border-t border-neutral-800 flex items-center justify-between">
-        <span className="text-[11px] text-neutral-500 font-mono">DEVICE LIMIT</span>
-        <GoogleLogoutButton />
-      </div>
-    </div>
-  </>
-)}
+              <div className="pt-4 border-t border-neutral-800 flex items-center justify-between">
+                <span className="text-[11px] text-neutral-500 font-mono">DEVICE LIMIT</span>
+                <GoogleLogoutButton />
+              </div>
+            </div>
+          </>
+        )}
 
         {/* 3️⃣ LOGIN REQUIRED */}
         {!sessionExists && !blocked && active !== null && (
@@ -78,7 +78,7 @@ if (data?.success) {
               Sign in to activate your 14-day terminal trial.
             </Description>
             <div className="w-full flex justify-center">
-              <AuthButton /> 
+              <AuthButton />
             </div>
           </>
         )}
@@ -93,8 +93,8 @@ if (data?.success) {
             </Description>
             <div className="space-y-2 w-full flex flex-col items-center">
               {/* FIXED: Direct Tailwind classes for the blue button */}
-              <a 
-                href="https://t.me/fxhedzbot" 
+              <a
+                href="https://t.me/fxhedzbot"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full flex justify-center items-center py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-md transition-all shadow-md active:scale-[0.98] cursor-pointer"
@@ -102,7 +102,7 @@ if (data?.success) {
                 Upgrade Subscription
               </a>
               <div className="w-full pt-2 border-t border-neutral-800 mt-2 flex justify-center">
-                 <GoogleLogoutButton />
+                <GoogleLogoutButton />
               </div>
             </div>
           </>
@@ -163,7 +163,7 @@ function Description({ children }: any) {
 
 function GoogleLogoutButton() {
   return (
-    <button 
+    <button
       onClick={() => signOut()}
       className="flex items-center justify-center py-1.5 px-4 bg-white hover:bg-neutral-100 text-neutral-800 font-bold text-[10px] rounded border border-neutral-200 shadow-sm transition-all uppercase"
     >
