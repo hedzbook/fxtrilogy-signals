@@ -38,8 +38,7 @@ export default function AccessOverlay({
             <Header />
             <Title>Device Restricted</Title>
             <Description>
-              Maximum allowed devices is 2.
-              You may sign out of all registered devices to continue.
+              Maximum allowed terminals is 2.
             </Description>
 
             <div className="space-y-2 w-full">
