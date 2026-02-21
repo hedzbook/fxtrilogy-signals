@@ -333,19 +333,19 @@ useEffect(() => {
 
   const isGuest = !session || subActive !== true
 
-let detailData: any = undefined
-
-let detailData: any = undefined
+const detailData = openPair
+  ? (
+      isGuest
+        ? {
+            ...pairData?.[openPair],
+            ...generateDummyDetail(openPair),
+            orders: uiSignals?.[openPair]?.orders || []
+          }
+        : pairData?.[openPair]
+    )
+  : undefined
 
 if (openPair) {
-  detailData = isGuest
-    ? {
-        ...pairData?.[openPair],
-        ...generateDummyDetail(openPair),
-        orders: uiSignals?.[openPair]?.orders || []
-      }
-    : pairData?.[openPair]
-
   console.log("DETAIL DATA:", detailData)
 }
 
