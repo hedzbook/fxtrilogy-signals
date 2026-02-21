@@ -514,7 +514,7 @@ export default function Page() {
           transition-colors
         "
                 >
-                  Support
+                  HELP
                 </a>
 
                 {/* AUTH BUTTON */}
