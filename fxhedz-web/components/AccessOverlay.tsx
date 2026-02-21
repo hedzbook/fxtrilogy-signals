@@ -20,23 +20,23 @@ export default function AccessOverlay({
 }: Props) {
 
   // 1️⃣ Still verifying → show ONLY verifying state
-if (active === null) {
-  return (
-    <OverlayContainer>
-      <Panel>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-5 h-5 border-2 border-neutral-700 border-t-blue-500 rounded-full animate-spin" />
-          <p className="text-[10px] font-bold text-neutral-500 tracking-[0.2em]">
-            VERIFYING
-          </p>
-        </div>
-      </Panel>
-    </OverlayContainer>
-  )
-}
+  if (active === null) {
+    return (
+      <OverlayContainer>
+        <Panel>
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-5 h-5 border-2 border-neutral-700 border-t-blue-500 rounded-full animate-spin" />
+            <p className="text-[10px] font-bold text-neutral-500 tracking-[0.2em]">
+              VERIFYING
+            </p>
+          </div>
+        </Panel>
+      </OverlayContainer>
+    )
+  }
 
-// 2️⃣ Active → no overlay
-if (active === true) return null
+  // 2️⃣ Active → no overlay
+  if (active === true) return null
 
   return (
     <OverlayContainer>
@@ -79,7 +79,7 @@ if (active === true) return null
         )}
 
         {/* 3️⃣ LOGIN REQUIRED */}
-        {(!sessionExists || active === false) && !blocked && (
+        {!sessionExists && !blocked && (
           <>
             <Header />
             <Title>Institutional Sign-in</Title>
