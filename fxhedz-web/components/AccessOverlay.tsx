@@ -6,7 +6,7 @@ import AuthButton from "./AuthButton"
 type Props = {
   active: boolean | null
   sessionExists: boolean
-  status?: string | null
+  plan?: string | null
   expiry?: string | null
   blocked?: boolean
 }
@@ -14,7 +14,7 @@ type Props = {
 export default function AccessOverlay({
   active,
   sessionExists,
-  status,
+  plan,
   expiry,
   blocked
 }: Props) {

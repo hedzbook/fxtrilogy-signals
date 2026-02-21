@@ -563,7 +563,7 @@ export default function Page() {
         <AccessOverlay
           active={subActive}
           sessionExists={!!session}
-          status={accessMeta?.status}
+          plan={accessMeta?.status}
           expiry={accessMeta?.expiry}
           blocked={accessMeta?.blocked}
         />
