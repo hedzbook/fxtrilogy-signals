@@ -110,42 +110,6 @@ export default function Page() {
     setSubActive(null)
   }, [session])
 
-useEffect(() => {
-
-  const email = session?.user?.email
-  if (!email) return
-
-  const tg = (window as any)?.Telegram?.WebApp
-  if (!tg?.initDataUnsafe?.user?.id) return
-
-  async function bindTelegram() {
-
-    try {
-
-      const res = await fetch(process.env.NEXT_PUBLIC_GAS_URL!, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email,
-          telegram_chat_id: String(tg.initDataUnsafe.user.id)
-        })
-      })
-
-      const data = await res.json()
-
-      if (data?.blocked && data?.reason === "telegram_mismatch") {
-        alert("Telegram account mismatch. Please login from original Telegram account.")
-      }
-
-    } catch (err) {
-      console.error("Telegram bind error:", err)
-    }
-  }
-
-  bindTelegram()
-
-}, [session])
-
   useEffect(() => {
 
     async function generateFingerprint() {
@@ -224,51 +188,66 @@ useEffect(() => {
   // =============================
   // CHECK SUBSCRIPTION STATUS
   // =============================
-  useEffect(() => {
+useEffect(() => {
 
-    // NOT logged in → no verification
-    if (!session) {
+  const email = session?.user?.email
+
+  if (!email) {
+    setSubActive(false)
+    return
+  }
+
+  if (!fingerprint) return
+
+  async function init() {
+
+    let deviceId = localStorage.getItem("fxhedz_device_id")
+
+    if (!deviceId) {
+      deviceId = crypto.randomUUID()
+      localStorage.setItem("fxhedz_device_id", deviceId)
+    }
+
+    document.cookie = `fx_device=${deviceId}; path=/; max-age=31536000`
+    document.cookie = `fx_fp=${fingerprint}; path=/; max-age=31536000`
+
+    const tg = (window as any)?.Telegram?.WebApp
+    const telegramId =
+      tg?.initDataUnsafe?.user?.id
+        ? String(tg.initDataUnsafe.user.id)
+        : ""
+
+    try {
+
+      const res = await fetch("/api/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email,   // ✅ SAFE
+          device_id: deviceId,
+          fingerprint: fingerprint,
+          platform: telegramId ? "telegram" : "web",
+          telegram_chat_id: telegramId
+        })
+      })
+
+      const data = await res.json()
+
+      if (data?.blocked && data?.reason === "telegram_mismatch") {
+        alert("Telegram account mismatch. Please login from original Telegram account.")
+      }
+
+      setSubActive(Boolean(data?.active))
+      setAccessMeta(data)
+
+    } catch {
       setSubActive(false)
-      return
     }
+  }
 
-    // Wait until fingerprint exists
-    if (!fingerprint) {
-      return
-    }
+  init()
 
-    async function init() {
-
-      let id = localStorage.getItem("fxhedz_device_id")
-
-      if (!id) {
-        id = crypto.randomUUID()
-        localStorage.setItem("fxhedz_device_id", id)
-      }
-
-      document.cookie = `fx_device=${id}; path=/; max-age=31536000`
-      document.cookie = `fx_fp=${fingerprint}; path=/; max-age=31536000`
-
-      try {
-        const res = await fetch(
-          `/api/subscription?fingerprint=${encodeURIComponent(fingerprint)}`,
-          { cache: "no-store" }
-        )
-
-        const data = await res.json()
-
-        // 🔥 CRITICAL LINE
-        setSubActive(Boolean(data?.active))
-        setAccessMeta(data)
-
-      } catch {
-        setSubActive(false)
-      }
-    }
-
-    init()
-
-  }, [fingerprint, session])
+}, [fingerprint, session])
 
   useEffect(() => {
     const timer = setTimeout(() => {
