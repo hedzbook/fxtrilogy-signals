@@ -112,12 +112,13 @@ export default function Page() {
 
 useEffect(() => {
 
+  const email = session?.user?.email
+  if (!email) return
+
+  const tg = (window as any)?.Telegram?.WebApp
+  if (!tg?.initDataUnsafe?.user?.id) return
+
   async function bindTelegram() {
-
-    if (!session?.user?.email) return
-
-    const tg = (window as any)?.Telegram?.WebApp
-    if (!tg?.initDataUnsafe?.user?.id) return
 
     try {
 
@@ -125,9 +126,7 @@ useEffect(() => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: session.user.email,
-          fingerprint,
-          platform: "web",
+          email: email,
           telegram_chat_id: String(tg.initDataUnsafe.user.id)
         })
       })
@@ -135,17 +134,17 @@ useEffect(() => {
       const data = await res.json()
 
       if (data?.blocked && data?.reason === "telegram_mismatch") {
-        alert("Telegram account mismatch. Please login from original Telegram.")
+        alert("Telegram account mismatch. Please login from original Telegram account.")
       }
 
     } catch (err) {
-      console.error("Telegram binding failed", err)
+      console.error("Telegram bind error:", err)
     }
   }
 
   bindTelegram()
 
-}, [session, fingerprint])
+}, [session])
 
   useEffect(() => {
 

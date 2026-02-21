@@ -414,39 +414,34 @@ export default function Page() {
 
 useEffect(() => {
 
-  if (!session?.user?.email) return
-  if (!fingerprint) return
-
-  const tg = (window as any)?.Telegram?.WebApp
-  const telegramId = tg?.initDataUnsafe?.user?.id
-
-  if (!telegramId) return
-
-  const deviceId = localStorage.getItem("fxhedz_device_id") || ""
-
   async function bindTelegram() {
+
+    if (!session?.user?.email) return
+
+    const tg = (window as any)?.Telegram?.WebApp
+    if (!tg?.initDataUnsafe?.user?.id) return
+
     try {
+
       const res = await fetch(process.env.NEXT_PUBLIC_GAS_URL!, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: session.user.email,
-          device_id: deviceId,
-          fingerprint: fingerprint,
-          platform: "telegram",
-          telegram_chat_id: String(telegramId)
+          fingerprint,
+          platform: "web",
+          telegram_chat_id: String(tg.initDataUnsafe.user.id)
         })
       })
 
       const data = await res.json()
 
-      // ðŸ” STRICT TELEGRAM MISMATCH HANDLING
       if (data?.blocked && data?.reason === "telegram_mismatch") {
         alert("Telegram account mismatch. Please login from original Telegram.")
       }
 
     } catch (err) {
-      console.error("Telegram bind failed:", err)
+      console.error("Telegram binding failed", err)
     }
   }
 
