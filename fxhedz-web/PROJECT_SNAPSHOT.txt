@@ -7,6 +7,7 @@ PROJECT STRUCTURE
 .gitignore
 app\api\auth\[...nextauth]\route.ts
 app\api\public-preview\route.ts
+app\api\reset-devices\route.ts
 app\api\signals\route.ts
 app\api\subscription\route.ts
 app\globals.css
@@ -144,6 +145,54 @@ export async function GET() {
   } catch {
     return NextResponse.json(
       { error: "Preview unavailable" },
+      { status: 500 }
+    )
+  }
+}
+
+
+
+// app\api\reset-devices\route.ts
+// --------------------------------------------------
+
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "../auth/[...nextauth]/route"
+
+export async function POST() {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { success: false, error: "unauthorized" },
+        { status: 401 }
+      )
+    }
+
+    const res = await fetch(process.env.GAS_URL!, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: session.user.email,
+        reset_devices: true
+      })
+    })
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { success: false, error: "gas_failed" },
+        { status: 500 }
+      )
+    }
+
+    const data = await res.json()
+
+    return NextResponse.json(data)
+
+  } catch (err) {
+    return NextResponse.json(
+      { success: false, error: "server_error" },
       { status: 500 }
     )
   }
@@ -571,15 +620,24 @@ document.cookie = `fx_platform=${platform}; path=/; max-age=31536000`
   }
 
   try {
-    const res = await fetch(
-      `/api/subscription?fingerprint=${encodeURIComponent(fingerprint)}`,
-      { cache: "no-store" }
-    )
+const res = await fetch(
+  `/api/subscription?fingerprint=${encodeURIComponent(fingerprint)}`,
+  { cache: "no-store" }
+)
 
-    const data = await res.json()
+const data = await res.json()
 
-    setSubActive(Boolean(data?.active))
-    setAccessMeta(data)
+if (data?.blocked && data?.reason === "device_limit_exceeded") {
+  setSubActive(false)
+  setAccessMeta({
+    ...data,
+    deviceLimit: true
+  })
+  return
+}
+
+setSubActive(Boolean(data?.active))
+setAccessMeta(data)
 
   } catch {
     setSubActive(false)
@@ -960,31 +1018,35 @@ export default function AccessOverlay({
           </div>
         )}
 
-        {/* 2ï¸âƒ£ DEVICE BLOCKED */}
-        {blocked && (
-          <>
-            <Header />
-            <Title>Device Restricted</Title>
-            <Description>
-              Please contact support to register this device.
-            </Description>
-            <div className="space-y-2 w-full">
-              {/* FIXED: Direct Tailwind classes for the blue button */}
-              <a 
-                href="https://t.me/fxhedzbot" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex justify-center items-center py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-md transition-all shadow-md active:scale-[0.98] cursor-pointer"
-              >
-                Contact Support
-              </a>
-              <div className="pt-4 border-t border-neutral-800 flex items-center justify-between">
-                <span className="text-[11px] text-neutral-500 font-mono">LOCKED</span>
-                <GoogleLogoutButton />
-              </div>
-            </div>
-          </>
-        )}
+{/* 2ï¸âƒ£ DEVICE BLOCKED */}
+{blocked && (
+  <>
+    <Header />
+    <Title>Device Restricted</Title>
+    <Description>
+      Maximum allowed devices is 2.
+      You may sign out of all registered devices to continue.
+    </Description>
+
+    <div className="space-y-2 w-full">
+
+      <button
+        onClick={async () => {
+          await fetch("/api/reset-devices", { method: "POST" })
+          window.location.reload()
+        }}
+        className="w-full flex justify-center items-center py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs sm:text-sm font-bold rounded-md transition-all shadow-md active:scale-[0.98]"
+      >
+        Logout of All Devices
+      </button>
+
+      <div className="pt-4 border-t border-neutral-800 flex items-center justify-between">
+        <span className="text-[11px] text-neutral-500 font-mono">DEVICE LIMIT</span>
+        <GoogleLogoutButton />
+      </div>
+    </div>
+  </>
+)}
 
         {/* 3ï¸âƒ£ LOGIN REQUIRED */}
         {!sessionExists && !blocked && active !== null && (

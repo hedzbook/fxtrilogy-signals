@@ -18,22 +18,21 @@ async signIn({ user }) {
     if (user?.email) {
 
       const cookieStore = await cookies()
+
       const deviceId = cookieStore.get("fx_device")?.value || ""
       const fingerprint = cookieStore.get("fx_fp")?.value || ""
 
-      // Detect platform
       let platform = "web"
       let telegramChatId = ""
 
-      // Telegram detection must happen client-side,
-      // so we rely on a cookie set by frontend
-
-      const tgCookie = cookieStore.get("fx_platform")?.value
+      const platformCookie = cookieStore.get("fx_platform")?.value
       const tgIdCookie = cookieStore.get("fx_tg_id")?.value
 
-      if (tgCookie === "telegram") {
+      if (platformCookie === "telegram") {
         platform = "telegram"
         telegramChatId = tgIdCookie || ""
+      } else if (platformCookie === "android") {
+        platform = "android"
       }
 
       await fetch(process.env.GAS_AUTH_URL!, {
@@ -43,7 +42,7 @@ async signIn({ user }) {
           email: user.email,
           device_id: deviceId,
           fingerprint: fingerprint,
-          platform: platform,
+          platform,
           telegram_chat_id: telegramChatId
         }),
       })
