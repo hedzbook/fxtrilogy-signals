@@ -6,7 +6,7 @@ import AuthButton from "./AuthButton"
 type Props = {
   active: boolean | null
   sessionExists: boolean
-  plan?: string | null
+  status?: string | null
   expiry?: string | null
   blocked?: boolean
 }
@@ -14,7 +14,7 @@ type Props = {
 export default function AccessOverlay({
   active,
   sessionExists,
-  plan,
+  status,
   expiry,
   blocked
 }: Props) {
@@ -82,8 +82,8 @@ export default function AccessOverlay({
           </>
         )}
 
-        {/* 4️⃣ LIVE EXPIRED */}
-        {sessionExists && plan === "LIVE" && !blocked && (
+        {/* 4️⃣ FREE EXPIRED */}
+        {sessionExists && status === "live" && !blocked && (
           <>
             <Header />
             <Title>Trial Concluded</Title>
@@ -98,7 +98,7 @@ export default function AccessOverlay({
                 rel="noopener noreferrer"
                 className="w-full flex justify-center items-center py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm font-bold rounded-md transition-all shadow-md active:scale-[0.98] cursor-pointer"
               >
-                LIVE+
+                Upgrade Subscription
               </a>
               <div className="w-full pt-2 border-t border-neutral-800 mt-2 flex justify-center">
                 <GoogleLogoutButton />

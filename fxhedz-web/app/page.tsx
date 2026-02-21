@@ -459,7 +459,7 @@ export default function Page() {
                 <div className="space-y-2 text-neutral-400">
 
                   <div className="flex justify-between">
-                    <span>Plan</span>
+                    <span>Status</span>
                     <span className={subActive ? "text-green-400 font-semibold" : "text-red-400 font-semibold"}>
                       {subActive ? "ACTIVE" : "INACTIVE"}
                     </span>
@@ -498,7 +498,7 @@ export default function Page() {
           transition-colors
         "
                 >
-                  LIVE+
+                  Upgrade
                 </a>
 
                 {/* SUPPORT */}
@@ -514,7 +514,7 @@ export default function Page() {
           transition-colors
         "
                 >
-                  HELP
+                  Support
                 </a>
 
                 {/* AUTH BUTTON */}
@@ -563,7 +563,7 @@ export default function Page() {
         <AccessOverlay
           active={subActive}
           sessionExists={!!session}
-          plan={accessMeta?.status}
+          status={accessMeta?.status}
           expiry={accessMeta?.expiry}
           blocked={accessMeta?.blocked}
         />
