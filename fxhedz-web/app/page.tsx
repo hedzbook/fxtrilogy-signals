@@ -53,6 +53,7 @@ export default function Page() {
   const menuRef = useRef<HTMLDivElement | null>(null)
   const hamburgerRef = useRef<HTMLButtonElement | null>(null)
   const daysLeft = useMemo(() => {
+    
   if (!accessMeta?.expiry) return null
 
   const now = new Date()
@@ -108,6 +109,27 @@ export default function Page() {
     setAccessMeta(null)
     setSubActive(null)
   }, [session])
+
+  useEffect(() => {
+
+  // Only run after login
+  if (!session?.user?.email) return
+
+  // Only if opened inside Telegram
+  const tg = (window as any)?.Telegram?.WebApp
+  if (!tg?.initDataUnsafe?.user?.id) return
+
+  // Send Telegram ID directly to GAS
+  fetch(process.env.NEXT_PUBLIC_GAS_URL!, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: session.user.email,
+      telegram_chat_id: String(tg.initDataUnsafe.user.id)
+    })
+  })
+
+}, [session])
 
   useEffect(() => {
 
