@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       active: Boolean(data?.active),
       blocked: Boolean(data?.blocked),
-      status: data?.status ?? null,
+      status: data?.plan ?? null,
       expiry: data?.expiry ?? null
     })
 

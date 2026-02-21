@@ -221,7 +221,6 @@ export default function Page() {
         )
 
         const data = await res.json()
-        console.log("SUB DATA:", data)
 
         if (data?.blocked && data?.reason === "device_limit_exceeded") {
           setSubActive(false)
