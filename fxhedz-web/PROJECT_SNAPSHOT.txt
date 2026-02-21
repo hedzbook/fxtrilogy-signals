@@ -123,6 +123,39 @@ import { NextRequest, NextResponse } from "next/server"
 const GAS_BASE =
   "https://script.google.com/macros/s/AKfycby55ye_dTtWJ-QILNYJIaXWv74_n7n0muh3U--sBl7yowMlp1FzESOokWqeHI75U5_R/exec"
 
+function generateFallbackCandles(basePrice: number = 2000) {
+  const candles = []
+  let price = basePrice || 2000
+
+  const now = Math.floor(Date.now() / 1000)
+
+  for (let i = 40; i > 0; i--) {
+    const open = price
+    const volatility = basePrice * 0.002
+
+    const close =
+      open + (Math.random() - 0.5) * volatility
+
+    const high =
+      Math.max(open, close) + Math.random() * volatility * 0.5
+
+    const low =
+      Math.min(open, close) - Math.random() * volatility * 0.5
+
+    candles.push({
+      time: now - i * 900,
+      open,
+      high,
+      low,
+      close
+    })
+
+    price = close
+  }
+
+  return candles
+}
+
 export async function GET(req: NextRequest) {
   try {
     const pair = req.nextUrl.searchParams.get("pair") || "XAUUSD"
@@ -134,13 +167,23 @@ export async function GET(req: NextRequest) {
 
     const json = await res.json()
 
+    const basePrice =
+      Number(json?.price) ||
+      Number(json?.entry) ||
+      2000
+
+    const candles =
+      json?.candles?.length
+        ? json.candles.slice(-40)
+        : generateFallbackCandles(basePrice)
+
     return NextResponse.json({
       direction: json?.direction,
       price: json?.price,
       entry: json?.entry,
       sl: json?.sl,
       tp: json?.tp,
-      candles: json?.candles?.slice(-40) || []
+      candles
     })
 
   } catch {
@@ -479,11 +522,6 @@ export default function Page() {
   }, [session, fingerprint, subActive])
 
   useEffect(() => {
-    setAccessMeta(null)
-    setSubActive(null)
-  }, [session])
-
-  useEffect(() => {
     const result = ensureDeviceIdentity()
     if (result?.fingerprint) {
       setFingerprint(result.fingerprint)
@@ -492,17 +530,19 @@ export default function Page() {
 
   useEffect(() => {
 
-    // If not logged in â†’ show dummy
-    if (!session) {
-      setSignals(generateDummySignals())
-      return
-    }
+if (status === "loading") return
 
-    // If logged in but not active â†’ no real signals
-    if (subActive !== true) {
-      setSignals(generateDummySignals())
-      return
-    }
+if (!session) {
+  setSignals(generateDummySignals())
+  return
+}
+
+if (subActive === false) {
+  setSignals(generateDummySignals())
+  return
+}
+
+if (subActive === null) return
     if (!fingerprint) return
 
     async function loadSignals() {
@@ -525,7 +565,7 @@ export default function Page() {
     const interval = setInterval(loadSignals, 2500)
     return () => clearInterval(interval)
 
-  }, [subActive, fingerprint, session])
+  }, [subActive, fingerprint, status])
 
   // =============================
   // CHECK SUBSCRIPTION STATUS
@@ -645,7 +685,9 @@ useEffect(() => {
 
   if (!openPair) return
 
-  const isGuest = !session || subActive !== true
+  const isGuest =
+  status !== "authenticated" ||
+  subActive === false
 
   if (isGuest) {
     loadPreview(openPair)
@@ -679,7 +721,7 @@ useEffect(() => {
       cancelled = true
       clearInterval(interval)
     }
-  }, [openPair, subActive, fingerprint])
+  }, [openPair, subActive, fingerprint, status])
 
   function togglePair(pair: string) {
     // Toggle between open/close pair expansion
@@ -698,17 +740,24 @@ useEffect(() => {
     })
   }, [uiSignals, pairData])
 
-  const isGuest = !session || subActive !== true
+  const isGuest =
+  status !== "authenticated" ||
+  subActive === false
 
-let detailData: any = undefined
+const detailData = openPair
+  ? (
+      isGuest
+        ? {
+            ...pairData?.[openPair],
+            ...generateDummyDetail(openPair),
+            orders: uiSignals?.[openPair]?.orders || []
+          }
+        : pairData?.[openPair]
+    )
+  : undefined
 
 if (openPair) {
-  detailData = isGuest
-    ? {
-        ...generateDummyDetail(openPair),
-        orders: uiSignals?.[openPair]?.orders || []
-      }
-    : pairData?.[openPair]
+  console.log("DETAIL DATA:", detailData)
 }
 
   return (
@@ -2375,7 +2424,7 @@ export default function PairDetail({
                 />
 <GlobalLightChart
     mountId={`chart_mount_${pair}`}
-    signal={signal}
+    signal={isGuest ? data : signal}
     disableOverlays={isGuest}
 />
             </div>
