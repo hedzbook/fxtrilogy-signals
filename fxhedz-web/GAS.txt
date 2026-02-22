@@ -180,9 +180,7 @@ function handleAuthUser(email, deviceId, fingerprint, platform, telegramChatId) 
             };
         }
     }
-    const active =
-        plan === "live+" ||
-        (plan === "live" && expiry > now);
+    const active = expiry > now;
 
     if (!active) {
         return {
@@ -278,9 +276,7 @@ function handleDeviceAccess(sheet, userRows, email, deviceId, fingerprint, platf
         const expiry = existing.row[2] ? new Date(existing.row[2]) : new Date(0);
         const plan = String(existing.row[3] || "").toLowerCase();
 
-        const active =
-            plan === "live+" ||
-            (plan === "live" && expiry > now);
+        const active = expiry > now;
 
         // Telegram binding logic (unchanged but cleaner)
         if (telegramChatId) {
@@ -384,21 +380,9 @@ function checkAuthUser(email) {
         const expiry = rows[i][2] ? new Date(rows[i][2]) : new Date(0);
         const plan = String(rows[i][3] || "").toLowerCase();
 
-        if (plan === "live+") {
-            return {
-                active: true,
-                plan,
-                expiry
-            };
-        }
-
-        if (plan === "live" && expiry > now) {
-            return {
-                active: true,
-                plan,
-                expiry
-            };
-        }
+        if (expiry > now) {
+    return { active: true, plan, expiry };
+}
     }
 
     return {
@@ -602,9 +586,7 @@ function doGet(e) {
         const expiry = rows[i][2] ? new Date(rows[i][2]) : new Date(0);
         const plan = String(rows[i][3] || "").toLowerCase();
 
-        const active =
-            plan === "live+" ||
-            (plan === "live" && expiry > now);
+        const active = expiry > now;
 
         if (!active) {
             return jsonBlocked(plan, expiry);
@@ -647,14 +629,14 @@ function resetUserDevices(email) {
 }
 
 function jsonBlocked(plan, expiry) {
-    return ContentService
-        .createTextOutput(JSON.stringify({
-            blocked: true,
-            active: false,
-            plan: plan || null,
-            expiry: expiry || null
-        }))
-        .setMimeType(ContentService.MimeType.JSON);
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      blocked: false,   // 🔥 CRITICAL FIX
+      active: false,
+      plan: plan || null,
+      expiry: expiry || null
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function buildSignalResponse(access, pair) {
@@ -1339,8 +1321,20 @@ function onSubscription(chatId) {
             "Plan: LIVE\n" +
             "Valid till: " + formatDate(row.expiry);
     } else {
-        planText = "Plan: EXPIRED";
-    }
+  const months = row.plan_months || 0;
+
+  if (months > 0) {
+    planText =
+      "Plan: LIVE+\n" +
+      "Status: Access Ended\n" +
+      "Expired on: " + formatDate(row.expiry);
+  } else {
+    planText =
+      "Plan: TRIAL\n" +
+      "Status: TRIAL CONCLUDED\n" +
+      "Expired on: " + formatDate(row.expiry);
+  }
+}
 
     sendRich(
         chatId,
@@ -1350,7 +1344,7 @@ function onSubscription(chatId) {
         "Upgrade to LIVE+ 👇\n\n" +
         "🔥 <b>6 Months</b> is most popular\n" +
         "💎 <b>12 Months</b> is best value\n\n" +
-        "🆔 <b>Your Telegram Chat ID</b>:\n" +
+        "🆔 <b>Chat ID</b>: " +
         "<code>" + chatId + "</code>\n\n" +
         "⚠️ <b>IMPORTANT</b>\n" +
         "Add your Chat ID in Razorpay payment notes", {
