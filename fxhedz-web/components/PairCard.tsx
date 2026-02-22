@@ -42,18 +42,18 @@ function PairCard({
   useEffect(() => setLiveDir(dir), [dir])
   useEffect(() => setLiveOrders(orders ?? []), [orders])
   useEffect(() => { if (expanded) setTab("market") }, [expanded])
-useEffect(() => {
-  const newCache: Record<string, number> = {}
-  liveOrders.forEach(o => {
-    const key = o.id || `${o.direction}_${o.entry}_${o.time}`
-    newCache[key] = Number(o.profit ?? 0)
-  })
-  setPnlCache(newCache)
-}, [liveOrders])
+  useEffect(() => {
+    const newCache: Record<string, number> = {}
+    liveOrders.forEach(o => {
+      const key = o.id || `${o.direction}_${o.entry}_${o.time}`
+      newCache[key] = Number(o.profit ?? 0)
+    })
+    setPnlCache(newCache)
+  }, [liveOrders])
 
   return (
-<div
-  className={`
+    <div
+      className={`
     text-[clamp(10px,1.1vw,20px)]
     relative
     transition-all duration-300
@@ -63,11 +63,11 @@ useEffect(() => {
     flex-none
     ${expanded ? "z-20 shadow-xl" : "z-0"}
   `}
->
+    >
 
-{/* ================= HEADER ================== */}
-<div
-  className="
+      {/* ================= HEADER ================== */}
+      <div
+        className="
     flex-shrink-0
     flex flex-col
     justify-center
@@ -75,58 +75,57 @@ useEffect(() => {
 py-[clamp(2px,0.6vh,6px)]
     cursor-pointer
   "
-  onClick={(e) => {
-    e.stopPropagation()
-    onToggle()
-  }}
->
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggle()
+        }}
+      >
 
-  {signal && (
-    <div className="flex flex-col w-full">
+        {signal && (
+          <div className="flex flex-col w-full">
 
-      {/* ROW 1 — PAIR + DIRECTION */}
-      <div className="flex justify-between items-center">
-        <div className="font-semibold text-[clamp(10px,1.8vh,22px)] leading-none">
-          {pair}
-        </div>
+            {/* ROW 1 — PAIR + DIRECTION */}
+            <div className="flex justify-between items-center">
+              <div className="font-semibold text-[clamp(10px,1.8vh,22px)] leading-none">
+                {pair}
+              </div>
 
-        <div className={`font-bold text-[clamp(10px,1.8vh,22px)] ${
-          liveDir === "BUY"
-            ? "text-green-400"
-            : liveDir === "SELL"
-              ? "text-red-400"
-              : liveDir === "HEDGED"
-                ? "text-sky-400"
-                : "text-neutral-500"
-        }`}>
-          {liveDir}
-        </div>
+              <div className={`font-bold text-[clamp(10px,1.8vh,22px)] ${liveDir === "BUY"
+                  ? "text-green-400"
+                  : liveDir === "SELL"
+                    ? "text-red-400"
+                    : liveDir === "HEDGED"
+                      ? "text-sky-400"
+                      : "text-neutral-500"
+                }`}>
+                {liveDir}
+              </div>
+            </div>
+
+            {/* ROW 2 — LOTS + B/S COUNT */}
+            <div className="mt-[clamp(1px,0.4vw,6px)] flex justify-between items-center text-[clamp(8px,1.3vh,18px)] leading-none">
+              <div className="text-neutral-400">
+                {signal?.lots ?? "-"} LOTS
+              </div>
+
+              <div className="font-semibold">
+                <span className="text-green-400">{signal?.buys ?? 0}B</span>
+                <span className="text-neutral-500 px-1">/</span>
+                <span className="text-red-400">{signal?.sells ?? 0}S</span>
+              </div>
+            </div>
+
+            {/* ROW 3 — TRADE BAR */}
+            <div className="mt-[clamp(1px,0.8vw,10px)]">
+              <InlineTradeStrip
+                signal={signal}
+                direction={liveDir}
+              />
+            </div>
+
+          </div>
+        )}
       </div>
-
-{/* ROW 2 — LOTS + B/S COUNT */}
-<div className="mt-[clamp(1px,0.4vw,6px)] flex justify-between items-center text-[clamp(8px,1.3vh,18px)] leading-none">
-        <div className="text-neutral-400">
-          {signal?.lots ?? "-"} LOTS
-        </div>
-
-        <div className="font-semibold">
-          <span className="text-green-400">{signal?.buys ?? 0}B</span>
-          <span className="text-neutral-500 px-1">/</span>
-          <span className="text-red-400">{signal?.sells ?? 0}S</span>
-        </div>
-      </div>
-
-      {/* ROW 3 — TRADE BAR */}
-<div className="mt-[clamp(1px,0.8vw,10px)]">
-  <InlineTradeStrip
-    signal={signal}
-    direction={liveDir}
-  />
-</div>
-
-    </div>
-  )}
-</div>
 
       {/* ================= EXPANDED CONTENT ================ */}
       {expanded && (
@@ -189,7 +188,7 @@ py-[clamp(2px,0.6vh,6px)]
                         <div
                           key={key}
                           className={`bg-neutral-900 px-2 py-2 min-h-[38px] rounded-md text-xs flex justify-between ...`}
->
+                        >
                           <div>
                             <div className={`font-semibold ${o.direction === "BUY"
                               ? "text-green-400"
@@ -224,88 +223,88 @@ py-[clamp(2px,0.6vh,6px)]
             )}
 
             {/* ================= NEWS ================= */}
-{tab === "news" && (
-  <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
+            {tab === "news" && (
+              <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
 
-    <div className="shrink-0 text-[clamp(10px,1.4vw,14px)] text-neutral-400 mb-2">
-      Market Commentary
-    </div>
+                <div className="shrink-0 text-[clamp(10px,1.4vw,14px)] text-neutral-400 mb-2">
+                  Market Commentary
+                </div>
 
-    <div className="flex-1 min-h-0 overflow-y-auto bg-neutral-900 border border-neutral-800 p-[clamp(10px,1.4vw,16px)] text-[clamp(10px,1.4vw,14px)]">
-      {notes || "Coming Soon"}
-    </div>
+                <div className="flex-1 min-h-0 overflow-y-auto bg-neutral-900 border border-neutral-800 p-[clamp(10px,1.4vw,16px)] text-[clamp(10px,1.4vw,14px)]">
+                  {notes || "Coming Soon"}
+                </div>
 
-  </div>
-)}
+              </div>
+            )}
 
             {/* ================= HISTORY ================= */}
-{tab === "history" && (
-  <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
+            {tab === "history" && (
+              <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
 
-    <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
 
-      {history?.length ? history.map((h: any, i: number) => (
-        <div
-          key={i}
-          className="bg-neutral-900 border border-neutral-800 p-[clamp(8px,1vw,14px)] flex justify-between text-[clamp(10px,1.4vw,14px)]"
-        >
-          <div>
-            <div className={h.direction === "BUY" ? "text-green-400" : "text-red-400"}>
-              {h.direction}
-            </div>
-            <div className="text-xs text-neutral-400">
-              {h.entry} → {h.exit}
-            </div>
-          </div>
-          <div className={h.pnl >= 0 ? "text-green-400" : "text-red-400"}>
-            {h.pnl}
-          </div>
-        </div>
-      )) : (
-        <div className="text-neutral-500 text-[clamp(10px,1.4vw,14px)]">
-          No history yet
-        </div>
-      )}
+                  {history?.length ? history.map((h: any, i: number) => (
+                    <div
+                      key={i}
+                      className="bg-neutral-900 border border-neutral-800 p-[clamp(8px,1vw,14px)] flex justify-between text-[clamp(10px,1.4vw,14px)]"
+                    >
+                      <div>
+                        <div className={h.direction === "BUY" ? "text-green-400" : "text-red-400"}>
+                          {h.direction}
+                        </div>
+                        <div className="text-xs text-neutral-400">
+                          {h.entry} → {h.exit}
+                        </div>
+                      </div>
+                      <div className={h.pnl >= 0 ? "text-green-400" : "text-red-400"}>
+                        {h.pnl}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-neutral-500 text-[clamp(10px,1.4vw,14px)]">
+                      No history yet
+                    </div>
+                  )}
 
-    </div>
+                </div>
 
-  </div>
-)}
+              </div>
+            )}
 
             {/* ================= PERFORMANCE ================= */}
-{tab === "performance" && (
-  <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
+            {tab === "performance" && (
+              <div className="flex flex-col flex-1 min-h-0 p-[clamp(8px,1.2vw,16px)]">
 
-    <div className="flex-1 min-h-0 overflow-y-auto space-y-[clamp(8px,1vh,16px)] pr-1">
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-[clamp(8px,1vh,16px)] pr-1">
 
-      {/* TOP METRICS */}
-      <div className="grid grid-cols-2 gap-[clamp(6px,1vw,14px)] text-[clamp(10px,1.4vw,14px)]">
-        <Metric
-          label="Win Rate"
-          value={
-            performance?.winRate !== undefined
-              ? performance.winRate + "%"
-              : "--"
-          }
-        />
-        <Metric
-          label="Profit Factor"
-          value={performance?.profitFactor ?? "--"}
-        />
-      </div>
+                  {/* TOP METRICS */}
+                  <div className="grid grid-cols-2 gap-[clamp(6px,1vw,14px)] text-[clamp(10px,1.4vw,14px)]">
+                    <Metric
+                      label="Win Rate"
+                      value={
+                        performance?.winRate !== undefined
+                          ? performance.winRate + "%"
+                          : "--"
+                      }
+                    />
+                    <Metric
+                      label="Profit Factor"
+                      value={performance?.profitFactor ?? "--"}
+                    />
+                  </div>
 
-      {/* STAT LIST */}
-      <div className="space-y-[clamp(6px,1vh,12px)] text-[clamp(10px,1.4vw,14px)]">
-        <Stat label="Total Trades" value={performance?.trades} />
-        <Stat label="Wins" value={performance?.wins} />
-        <Stat label="Losses" value={performance?.losses} />
-        <Stat label="Total PnL" value={performance?.pnlTotal} />
-      </div>
+                  {/* STAT LIST */}
+                  <div className="space-y-[clamp(6px,1vh,12px)] text-[clamp(10px,1.4vw,14px)]">
+                    <Stat label="Total Trades" value={performance?.trades} />
+                    <Stat label="Wins" value={performance?.wins} />
+                    <Stat label="Losses" value={performance?.losses} />
+                    <Stat label="Total PnL" value={performance?.pnlTotal} />
+                  </div>
 
-    </div>
+                </div>
 
-  </div>
-)}
+              </div>
+            )}
 
           </div>
         </div>
@@ -409,20 +408,18 @@ function InlineTradeStrip({ signal, direction }: any) {
 
         {/* LEFT HALF */}
         <div
-          className={`absolute left-0 h-full w-1/2 ${
-            isHedged
+          className={`absolute left-0 h-full w-1/2 ${isHedged
               ? "bg-sky-500/70"
               : "bg-red-500/70"
-          }`}
+            }`}
         />
 
         {/* RIGHT HALF */}
         <div
-          className={`absolute right-0 h-full w-1/2 ${
-            isHedged
+          className={`absolute right-0 h-full w-1/2 ${isHedged
               ? "bg-sky-500/70"
               : "bg-green-500/70"
-          }`}
+            }`}
         />
 
         {/* SL DOT */}
@@ -434,73 +431,52 @@ function InlineTradeStrip({ signal, direction }: any) {
         {/* TP DOT */}
         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[clamp(6px,1.3vw,28px)] h-[clamp(6px,1.3vw,28px)] rounded-full border border-neutral-500 bg-black" />
 
-        {/* LIVE DOT */}
+        {/* LIVE DOT CONTAINER */}
         <div
-          className="absolute top-1/2"
+          className="absolute top-1/2 flex items-center justify-center"
           style={{
             left: `${pricePercent}%`,
             transform: "translate(-50%, -50%)",
-            transition: "left 300ms ease"
+            transition: "left 300ms ease",
+            width: "1px", // Minimal anchor point
+            height: "1px"
           }}
         >
-
           {/* OUTER PULSE */}
           <div
             className={`
-              absolute
-              w-[clamp(12px,1.8vw,36px)]
-              h-[clamp(12px,1.8vw,36px)]
-              -translate-x-1/2
-              -translate-y-1/2
-              left-1/2
-              top-1/2
-              rounded-full
-              ${isHedged
-                ? "bg-sky-400/35"
-                : isTPside
-                  ? "bg-green-400/35"
-                  : "bg-red-400/35"
-              }
-              animate-ping
-            `}
+      absolute
+      w-[clamp(12px,1.8vw,36px)]
+      h-[clamp(12px,1.8vw,36px)]
+      rounded-full
+      animate-ping
+      ${isHedged ? "bg-sky-400/35" : isTPside ? "bg-green-400/35" : "bg-red-400/35"}
+    `}
             style={{ animationDuration: "0.85s" }}
           />
 
-          {/* HALO */}
+          {/* HALO (Glow Effect) */}
           <div
             className={`
-              absolute
-              w-[clamp(9px,1.4vw,28px)]
-              h-[clamp(9px,1.4vw,28px)]
-              -translate-x-1/2
-              -translate-y-1/2
-              left-1/2
-              top-1/2
-              rounded-full
-              blur-lg
-              ${isHedged
-                ? "bg-sky-500/45"
-                : isTPside
-                  ? "bg-green-500/45"
-                  : "bg-red-500/45"
-              }
-            `}
+      absolute
+      w-[clamp(9px,1.4vw,28px)]
+      h-[clamp(9px,1.4vw,28px)]
+      rounded-full
+      blur-md
+      ${isHedged ? "bg-sky-500/45" : isTPside ? "bg-green-500/45" : "bg-red-500/45"}
+    `}
           />
 
           {/* CORE DOT */}
           <div
             className={`
-              relative
-              w-[clamp(6px,1.3vw,28px)]
-              h-[clamp(6px,1.3vw,28px)]
-              rounded-full
-              ${isHedged
-                ? "bg-sky-400"
-                : isTPside
-                  ? "bg-green-400"
-                  : "bg-red-400"
-              }
-            `}
+      absolute
+      w-[clamp(6px,1.1vw,20px)]
+      h-[clamp(6px,1.1vw,20px)]
+      rounded-full
+      shadow-[0_0_10px_rgba(0,0,0,0.5)]
+      ${isHedged ? "bg-sky-400" : isTPside ? "bg-green-400" : "bg-red-400"}
+    `}
           />
         </div>
       </div>
