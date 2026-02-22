@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react"
-import { View, Button, ActivityIndicator } from "react-native"
+import { View, ActivityIndicator } from "react-native"
 import { WebView } from "react-native-webview"
 import * as WebBrowser from "expo-web-browser"
 import * as Google from "expo-auth-session/providers/google"
 import * as SecureStore from "expo-secure-store"
-import { v4 as uuidv4 } from "uuid"
 
 WebBrowser.maybeCompleteAuthSession()
 
@@ -20,6 +19,9 @@ export default function HomeScreen() {
     webClientId: "314350994918-hofgc5ccq4kctiernfr1ms5nns5r7sjs.apps.googleusercontent.com"
   })
 
+  // ===============================
+  // INITIALIZE
+  // ===============================
   useEffect(() => {
     initialize()
   }, [])
@@ -36,12 +38,19 @@ export default function HomeScreen() {
     }
 
     if (storedRefresh && storedEmail) {
-      await tryRefresh()
+      const refreshed = await tryRefresh()
+      if (refreshed) {
+        const newAccess = await SecureStore.getItemAsync("accessToken")
+        setAccessToken(newAccess ?? null)
+      }
     }
 
     setLoading(false)
   }
 
+  // ===============================
+  // GOOGLE RESPONSE HANDLER
+  // ===============================
   useEffect(() => {
     if (response?.type === "success") {
       const idToken = response.authentication?.idToken
@@ -51,15 +60,23 @@ export default function HomeScreen() {
     }
   }, [response])
 
-  async function getDeviceId() {
+  // ===============================
+  // DEVICE ID
+  // ===============================
+  async function getDeviceId(): Promise<string> {
     let deviceId = await SecureStore.getItemAsync("deviceId")
+
     if (!deviceId) {
-      deviceId = uuidv4()
+      deviceId = crypto.randomUUID()
       await SecureStore.setItemAsync("deviceId", deviceId)
     }
+
     return deviceId
   }
 
+  // ===============================
+  // EXCHANGE GOOGLE TOKEN
+  // ===============================
   async function exchangeTokenWithBackend(idToken: string) {
     const deviceId = await getDeviceId()
 
@@ -72,45 +89,50 @@ export default function HomeScreen() {
       })
     })
 
-    const data = await res.json()
-
     if (!res.ok) return
+
+    const data = await res.json()
 
     await SecureStore.setItemAsync("accessToken", data.accessToken)
     await SecureStore.setItemAsync("refreshToken", data.refreshToken)
     await SecureStore.setItemAsync("email", data.email)
-    await SecureStore.setItemAsync("deviceId", deviceId)
 
     setAccessToken(data.accessToken)
   }
 
-async function tryRefresh(): Promise<boolean> {
-  const refreshToken = await SecureStore.getItemAsync("refreshToken")
-  const email = await SecureStore.getItemAsync("email")
-  const deviceId = await SecureStore.getItemAsync("deviceId")
+  // ===============================
+  // SILENT REFRESH
+  // ===============================
+  async function tryRefresh(): Promise<boolean> {
+    const refreshToken = await SecureStore.getItemAsync("refreshToken")
+    const email = await SecureStore.getItemAsync("email")
+    const deviceId = await SecureStore.getItemAsync("deviceId")
 
-  if (!refreshToken || !email || !deviceId) return false
+    if (!refreshToken || !email || !deviceId) return false
 
-  const res = await fetch(`${API_BASE}/api/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      refreshToken,
-      email,
-      deviceId
+    const res = await fetch(`${API_BASE}/api/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        refreshToken,
+        email,
+        deviceId
+      })
     })
-  })
 
-  if (!res.ok) return false
+    if (!res.ok) return false
 
-  const data = await res.json()
+    const data = await res.json()
 
-  await SecureStore.setItemAsync("accessToken", data.accessToken)
-  setAccessToken(data.accessToken)
+    await SecureStore.setItemAsync("accessToken", data.accessToken)
+    setAccessToken(data.accessToken)
 
-  return true
-}
+    return true
+  }
 
+  // ===============================
+  // LOGOUT
+  // ===============================
   async function logout() {
     await SecureStore.deleteItemAsync("accessToken")
     await SecureStore.deleteItemAsync("refreshToken")
@@ -118,43 +140,54 @@ async function tryRefresh(): Promise<boolean> {
     setAccessToken(null)
   }
 
+  // ===============================
+  // LOADING
+  // ===============================
   if (loading) {
     return (
-      <View style={{ flex:1, justifyContent:"center", alignItems:"center" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" />
       </View>
     )
   }
 
-  if (!accessToken) {
-    return (
-      <View style={{ flex:1, justifyContent:"center", alignItems:"center" }}>
-        <Button
-          title="Sign in with Google"
-          disabled={!request}
-          onPress={() => promptAsync()}
-        />
-      </View>
-    )
-  }
-
+  // ===============================
+  // ALWAYS LOAD WEBVIEW
+  // ===============================
   return (
 <WebView
+  key={accessToken ?? "guest"}
   source={{
     uri: API_BASE,
-    headers: { Authorization: `Bearer ${accessToken}` }
+    headers: accessToken
+      ? { Authorization: `Bearer ${accessToken}` }
+      : {}
   }}
   style={{ flex: 1 }}
+
+  onMessage={async (event) => {
+
+    const message = event.nativeEvent.data
+
+    if (message === "LOGIN_REQUEST") {
+      promptAsync()
+    }
+
+    if (message === "LOGOUT_REQUEST") {
+      await logout()
+    }
+  }}
+
   onHttpError={async (syntheticEvent) => {
+
     const { statusCode } = syntheticEvent.nativeEvent
 
     if (statusCode === 401) {
+
       const refreshed = await tryRefresh()
 
-      if (refreshed) {
-        setAccessToken(await SecureStore.getItemAsync("accessToken"))
-      } else {
-        await logout()
+      if (!refreshed) {
+        promptAsync()
       }
     }
   }}

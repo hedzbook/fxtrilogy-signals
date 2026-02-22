@@ -19,10 +19,21 @@ export default function AuthButton() {
   if (!session) {
     return (
       <button
-onClick={() => {
-  ensureDeviceIdentity()
-  signIn("google")
-}}
+        onClick={() => {
+
+          ensureDeviceIdentity()
+
+          // If inside Android WebView → trigger native login
+          if (typeof window !== "undefined" &&
+            (window as any).ReactNativeWebView) {
+
+            (window as any).ReactNativeWebView.postMessage("LOGIN_REQUEST")
+            return
+          }
+
+          // Normal web login
+          signIn("google")
+        }}
         className="
           flex items-center justify-center gap-3 
           w-full max-w-[clamp(140px,65vw,200px)]
@@ -50,7 +61,17 @@ text-[clamp(11px,2.6vw,15px)]
         </span>
       </div>
       <button
-        onClick={() => signOut()}
+        onClick={() => {
+
+          if (typeof window !== "undefined" &&
+            (window as any).ReactNativeWebView) {
+
+            (window as any).ReactNativeWebView.postMessage("LOGOUT_REQUEST")
+            return
+          }
+
+          signOut()
+        }}
         className="
           text-[10px] font-black uppercase tracking-tighter
           text-red-500/80 hover:text-red-500
