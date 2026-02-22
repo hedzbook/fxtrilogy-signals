@@ -1,50 +1,163 @@
 import React, { useEffect, useState } from "react"
-import { View, ActivityIndicator, StatusBar } from "react-native"
+import { View, Button, ActivityIndicator } from "react-native"
 import { WebView } from "react-native-webview"
-import { SafeAreaView } from "react-native-safe-area-context"
-import * as Device from "expo-device"
+import * as WebBrowser from "expo-web-browser"
+import * as Google from "expo-auth-session/providers/google"
 import * as SecureStore from "expo-secure-store"
+import { v4 as uuidv4 } from "uuid"
+
+WebBrowser.maybeCompleteAuthSession()
+
+const API_BASE = "https://fxhedz.vercel.app"
 
 export default function HomeScreen() {
 
-  const [deviceId, setDeviceId] = useState<string | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: "YOUR_ANDROID_CLIENT_ID",
+    webClientId: "YOUR_WEB_CLIENT_ID"
+  })
 
   useEffect(() => {
-    initDevice()
+    initialize()
   }, [])
 
-  async function initDevice() {
-    let id = await SecureStore.getItemAsync("fx_device_id")
+  async function initialize() {
+    const storedAccess = await SecureStore.getItemAsync("accessToken")
+    const storedRefresh = await SecureStore.getItemAsync("refreshToken")
+    const storedEmail = await SecureStore.getItemAsync("email")
 
-    if (!id) {
-      id = Device.osInternalBuildId + "-" + Date.now()
-      await SecureStore.setItemAsync("fx_device_id", id)
+    if (storedAccess) {
+      setAccessToken(storedAccess)
+      setLoading(false)
+      return
     }
 
-    setDeviceId(id)
+    if (storedRefresh && storedEmail) {
+      await tryRefresh()
+    }
+
+    setLoading(false)
   }
 
-  if (!deviceId) {
+  useEffect(() => {
+    if (response?.type === "success") {
+      const idToken = response.authentication?.idToken
+      if (idToken) {
+        exchangeTokenWithBackend(idToken)
+      }
+    }
+  }, [response])
+
+  async function getDeviceId() {
+    let deviceId = await SecureStore.getItemAsync("deviceId")
+    if (!deviceId) {
+      deviceId = uuidv4()
+      await SecureStore.setItemAsync("deviceId", deviceId)
+    }
+    return deviceId
+  }
+
+  async function exchangeTokenWithBackend(idToken: string) {
+    const deviceId = await getDeviceId()
+
+    const res = await fetch(`${API_BASE}/api/native-auth`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        idToken,
+        deviceId
+      })
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) return
+
+    await SecureStore.setItemAsync("accessToken", data.accessToken)
+    await SecureStore.setItemAsync("refreshToken", data.refreshToken)
+    await SecureStore.setItemAsync("email", data.email)
+    await SecureStore.setItemAsync("deviceId", deviceId)
+
+    setAccessToken(data.accessToken)
+  }
+
+async function tryRefresh(): Promise<boolean> {
+  const refreshToken = await SecureStore.getItemAsync("refreshToken")
+  const email = await SecureStore.getItemAsync("email")
+  const deviceId = await SecureStore.getItemAsync("deviceId")
+
+  if (!refreshToken || !email || !deviceId) return false
+
+  const res = await fetch(`${API_BASE}/api/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      refreshToken,
+      email,
+      deviceId
+    })
+  })
+
+  if (!res.ok) return false
+
+  const data = await res.json()
+
+  await SecureStore.setItemAsync("accessToken", data.accessToken)
+  setAccessToken(data.accessToken)
+
+  return true
+}
+
+  async function logout() {
+    await SecureStore.deleteItemAsync("accessToken")
+    await SecureStore.deleteItemAsync("refreshToken")
+    await SecureStore.deleteItemAsync("email")
+    setAccessToken(null)
+  }
+
+  if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000" }}>
+      <View style={{ flex:1, justifyContent:"center", alignItems:"center" }}>
         <ActivityIndicator size="large" />
-      </SafeAreaView>
+      </View>
     )
   }
 
-  const url =
-    `https://fxhedz.vercel.app/?platform=android&device_id=${deviceId}`
+  if (!accessToken) {
+    return (
+      <View style={{ flex:1, justifyContent:"center", alignItems:"center" }}>
+        <Button
+          title="Sign in with Google"
+          disabled={!request}
+          onPress={() => promptAsync()}
+        />
+      </View>
+    )
+  }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#000" }} edges={["top", "bottom"]}>
-      <StatusBar translucent={false} backgroundColor="#000" barStyle="light-content" />
-      <WebView
-        source={{ uri: url }}
-        style={{ flex: 1 }}
-        javaScriptEnabled
-        domStorageEnabled
-        originWhitelist={["*"]}
-      />
-    </SafeAreaView>
+<WebView
+  source={{
+    uri: API_BASE,
+    headers: { Authorization: `Bearer ${accessToken}` }
+  }}
+  style={{ flex: 1 }}
+  onHttpError={async (syntheticEvent) => {
+    const { statusCode } = syntheticEvent.nativeEvent
+
+    if (statusCode === 401) {
+      const refreshed = await tryRefresh()
+
+      if (refreshed) {
+        setAccessToken(await SecureStore.getItemAsync("accessToken"))
+      } else {
+        await logout()
+      }
+    }
+  }}
+/>
   )
 }

@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
+import { verifyAccessToken } from "@/lib/jwt"
 
 export async function GET(req: NextRequest) {
 
-  const deviceId = req.cookies.get("fx_device")?.value
-  const fingerprint = req.nextUrl.searchParams.get("fingerprint") || ""
+  const jwtUser = verifyAccessToken(req)
+
+  let deviceId: string | undefined
+
+  // 🔹 Android (JWT)
+  if (jwtUser && typeof jwtUser === "object") {
+    deviceId = (jwtUser as any).deviceId
+  }
+
+  // 🔹 Web / Telegram fallback
+  if (!deviceId) {
+    deviceId = req.cookies.get("fx_device")?.value
+  }
+
+  const fingerprint =
+    req.nextUrl.searchParams.get("fingerprint") || ""
 
   if (!deviceId) {
     return NextResponse.json({

@@ -1,29 +1,48 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "../auth/[...nextauth]/route"
+import { verifyAccessToken } from "@/lib/jwt"
 
 const GAS_BASE =
   "https://script.google.com/macros/s/AKfycby55ye_dTtWJ-QILNYJIaXWv74_n7n0muh3U--sBl7yowMlp1FzESOokWqeHI75U5_R/exec"
 
 export async function GET(req: NextRequest) {
 
-  // 1️⃣ LOGIN REQUIRED
-  const session = await getServerSession(authOptions)
+  // ===============================
+  // UNIFIED AUTH (WEB + ANDROID)
+  // ===============================
 
-  if (!session?.user?.email) {
+  const jwtUser = verifyAccessToken(req)
+
+  let email: string | null = null
+  let deviceId: string | undefined
+
+  // 🔹 Android (JWT)
+  if (jwtUser && typeof jwtUser === "object") {
+    email = (jwtUser as any).email
+    deviceId = (jwtUser as any).deviceId
+  }
+
+  // 🔹 Web / Telegram fallback
+  if (!email) {
+    const session = await getServerSession(authOptions)
+    email = session?.user?.email || null
+    deviceId = req.cookies.get("fx_device")?.value
+  }
+
+  if (!email || !deviceId) {
     return NextResponse.json(
-      { error: "Login required" },
+      { error: "Unauthorized" },
       { status: 401 }
     )
   }
 
-  // 2️⃣ DEVICE REQUIRED
-  const deviceId = req.cookies.get("fx_device")?.value
-  const fingerprint = req.nextUrl.searchParams.get("fingerprint") || ""
+  const fingerprint =
+    req.nextUrl.searchParams.get("fingerprint") || ""
 
-  if (!deviceId || !fingerprint) {
+  if (!fingerprint) {
     return NextResponse.json(
-      { error: "No device" },
+      { error: "No device fingerprint" },
       { status: 401 }
     )
   }
