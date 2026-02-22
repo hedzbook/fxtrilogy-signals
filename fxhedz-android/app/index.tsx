@@ -16,8 +16,8 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true)
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: "YOUR_ANDROID_CLIENT_ID",
-    webClientId: "YOUR_WEB_CLIENT_ID"
+    androidClientId: "314350994918-8vshj6jmsggen1tdiejho7bp912n83iu.apps.googleusercontent.com",
+    webClientId: "314350994918-hofgc5ccq4kctiernfr1ms5nns5r7sjs.apps.googleusercontent.com"
   })
 
   useEffect(() => {
